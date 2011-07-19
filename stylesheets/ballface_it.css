@@ -104,3 +104,19 @@ h2 {
   height: 348px; /*383px - 35px*/
   margin: 0 auto;
 }
+
+li.listingObject {
+  font-size: 11pt;
+  color: black;
+  cursor: pointer;
+}
+
+li.listingObject.selected {
+  font-size: 11pt;
+  background-color: #3333FF;
+  color: white;
+}
+
+li.listingObject:hover {
+  background-color: #9999FF;
+}

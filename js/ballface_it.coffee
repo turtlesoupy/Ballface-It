@@ -5,6 +5,9 @@ Array.prototype.dict = ->
     ret[e[0]] = e[1]
   ret
 
+Object.prototype.getClass = ->
+  @constructor
+
 #Start implementation
 
 class GameObject
@@ -12,6 +15,7 @@ class GameObject
   @image: "unknown.png"
   @relativeImage: =>
     "data/game_objects/#{@image}"
+  @counter = 0
   
   constructor: (@x, @y, loaded) ->
     @imageObject = new Image()
@@ -19,6 +23,8 @@ class GameObject
       @width = @imageObject.width
       @height = @imageObject.height
       loaded(this)
+    GameObject.counter += 1
+    @id = GameObject.counter
     @imageObject.src = @constructor.relativeImage()
     @selected = false
 
@@ -42,20 +48,80 @@ class GravityBall extends GameObject
   @name: "Gravity Ball"
   @image: "gravityball.png"
 
-class LevelCanvas
-  constructor: (@canvas) ->
+class LevelModel
+  constructor: ->
     @gameObjects = []
+    @gameObjectsById = {}
+    @selectedObject = null
+    @modelChangeCallbacks = []
+
+  hitTest: (x,y) ->
+    for gameObject in @gameObjects
+      if gameObject.hitTest x,y
+        return gameObject
+    null
+
+  select: (objectName) ->
+    if @selectedObject != objectName
+      if @selectedObject != null
+        @selectedObject.selected = false
+      @selectedObject = objectName
+      @selectedObject.selected = true
+      @modelChanged()
+
+  unselectAll: ->
+    if @selectedObject != null
+      @selectedObject.selected = false
+      @selectedObject = null
+      @modelChanged()
+
+  getObjectById: (id) ->
+    @gameObjectsById[parseInt id, 10]
+
+  addModelChangeCallback: (callback) ->
+    @modelChangeCallbacks.push callback
+
+  modelChanged: ->
+    e(this) for e in @modelChangeCallbacks
+
+  reorder: ->
+    @gameObjects.sort (a,b) -> a.x - b.x
+    @modelChanged()
+
+  addGameObject:(gameObject) ->
+    @gameObjects.push(gameObject)
+    @gameObjectsById[gameObject.id] = gameObject
+    @reorder()
+
+class LevelListing
+  constructor: (@dom, @levelModel) ->
+    @$dom = $(@dom)
+    $(@dom).html "<li>No objects...</li>"
+    @levelModel.addModelChangeCallback(@redraw)
+
+  clear: =>
+    $(@dom).empty()
+
+  redraw: =>
+    @clear()
+    for gameObject in @levelModel.gameObjects
+      @$dom.append($("<li class='listingObject#{if gameObject.selected then' selected' else ''}' data-id='#{gameObject.id}'>#{gameObject.getClass().name} @ #{gameObject.x}</li>"))
+
+
+class LevelCanvas
+  constructor: (@canvas, @levelModel) ->
     @selectedObject = null
     @draggingObject = null
     $(@canvas).mouseup @mouseUp
     $(@canvas).mousedown @mouseDown
     $(@canvas).mousemove @mouseMove
+    @levelModel.addModelChangeCallback(@redraw)
 
   mouseDown: (e) =>
-    hit = @hitTest(e.offsetX, e.offsetY)
+    hit = @levelModel.hitTest(e.offsetX, e.offsetY)
     if hit != null
+      $(@canvas).css "cursor", "move"
       @draggingObject = hit
-      console.log "Dragging!"
       @dragLastX = e.offsetX
       @dragLastY = e.offsetY
       @didDrag = false
@@ -72,39 +138,28 @@ class LevelCanvas
     @redraw()
 
   mouseUp: (e) =>
+    $(@canvas).css "cursor", ""
     if !@didDrag
-      oldSelection = @selectedObject
-      if @selectedObject != null
-        @selectedObject.selected = false
-        @selectedObject = null
-
-      hit = @hitTest(e.offsetX, e.offsetY)
-      if hit != null && hit != oldSelection
-        hit.selected = true
-        @selectedObject = hit
+      hit = @levelModel.hitTest(e.offsetX, e.offsetY)
+      if hit != null
+        @levelModel.select hit
+      else
+        @levelModel.unselectAll()
+    else
+      @levelModel.reorder()
 
     @draggingObject = null
-    @redraw()
 
   setWidth:(@width) ->
     @width = width
     @canvas.width = width
 
-  addGameObject: (gameObject) ->
-    @gameObjects.push(gameObject)
-
-  hitTest: (x,y) ->
-    for gameObject in @gameObjects
-      if gameObject.hitTest x,y
-        return gameObject
-    null 
-
   clear: ->
     @canvas.width = @canvas.width
 
-  redraw: ->
+  redraw: =>
     @clear()
-    for gameObject in @gameObjects
+    for gameObject in @levelModel.gameObjects
       gameObject.draw @canvas
 
 #Some globals
@@ -130,9 +185,11 @@ $(document).ready ->
   iphoneWidth = 480
 
   canvas = $("#editorCanvas").get(0)
-  levelCanvas = new LevelCanvas(canvas)
-
-  $("#editorMode").buttonset()
+  levelModel = new LevelModel
+  levelCanvas = new LevelCanvas canvas, levelModel
+  levelListing = new LevelListing $("#levelListing").get(0), levelModel
+  $(".listingObject").live 'click', ->
+    levelModel.select(levelModel.getObjectById($(this).data('id')))
 
   $("#levelWidth").change ->
     width = parseFloat($(this).val(), 10)
@@ -157,6 +214,6 @@ $(document).ready ->
       relativeTop = ui.offset.top - dPos.top
       relativeLeft = ui.offset.left - dPos.left
       klass = gameObjectClassByName[ui.draggable.data("gameObjectClass")]
-      levelCanvas.addGameObject new klass(relativeLeft, relativeTop, (obj) ->
-        levelCanvas.redraw())
+      gameObject = new klass(relativeLeft, relativeTop, (obj) ->
+        levelModel.addGameObject gameObject)
   }
