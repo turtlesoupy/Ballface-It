@@ -1,0 +1,106 @@
+body {
+  font-family: sans-serif;
+}
+
+.clear {
+  clear: both;
+}
+
+h1 {
+  font-weight: bold;
+  font-size: 30pt;
+}
+
+h2 {
+  font-weight: bold;
+  font-size: 20pt;
+}
+
+#wrapper {
+  width: 1024px;
+  margin: 0 auto;
+}
+
+.header {
+  width: 600px;
+  text-align: center;
+  margin: 30px auto;
+}
+
+.footer {
+  text-align: center;
+  width: 300px;
+  border-top: 1px solid #CCC;
+  margin: 50px auto 0 auto;
+  padding-top: 20px;
+}
+
+.outlineProperties {
+  width: 500px;
+  margin: 0 auto;
+}
+
+.outlineProperties .property {
+  clear: both;
+}
+
+.generalProperties {
+
+}
+
+.editorContent {
+}
+
+.editorCanvasWrapper {
+  width: 480px;
+  overflow-x: scroll;
+}
+
+#editorCanvas {
+  background: white;
+}
+
+#editorModeWrapper {
+  width: 300px;
+  text-align: center;
+  margin: 0 auto;
+}
+
+#gameObjectsWrapper {
+  margin-top: 20px;
+}
+
+.gameObject {
+  width: 100px;
+  border: 1px solid #e0e0e0;
+  text-align: center;
+  min-height: 100px;
+  padding: 5px;
+  margin: 5px;
+  float: left;
+}
+
+.gameObjectImage {
+  cursor: move;
+}
+
+.gameObject:hover {
+  background-color: #9999FF;
+}
+
+.gameObject .selected {
+  background-color: #3333FF
+}
+
+.gameObjectName {
+  font-weight: bold;
+}
+
+.iphone4 {
+  background-image:url('../images/iphone4.png');
+  width: 610px; /*739px - 129px */
+  padding-left: 129px;
+  padding-top: 35px;
+  height: 348px; /*383px - 35px*/
+  margin: 0 auto;
+}
