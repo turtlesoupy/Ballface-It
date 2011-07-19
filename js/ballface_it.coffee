@@ -20,10 +20,19 @@ class GameObject
       @height = @imageObject.height
       loaded(this)
     @imageObject.src = @constructor.relativeImage()
+    @selected = false
 
   draw: (canvas) ->
     context = canvas.getContext "2d"
+    extra = 2
+    if @selected
+      context.fillStyle = "#00f"
+      context.fillRect @x - extra,@y - extra,@width + 2*extra,@height + 2*extra
     context.drawImage @imageObject, @x, @y, @width, @height
+
+  hitTest: (x,y) ->
+    x >= @x && x <= @x + @width && y >= @y && y <= @y + @height
+
 
 class Paddle extends GameObject
   @name: "Wooden Paddle"
@@ -36,6 +45,46 @@ class GravityBall extends GameObject
 class LevelCanvas
   constructor: (@canvas) ->
     @gameObjects = []
+    @selectedObject = null
+    @draggingObject = null
+    $(@canvas).mouseup @mouseUp
+    $(@canvas).mousedown @mouseDown
+    $(@canvas).mousemove @mouseMove
+
+  mouseDown: (e) =>
+    hit = @hitTest(e.offsetX, e.offsetY)
+    if hit != null
+      @draggingObject = hit
+      console.log "Dragging!"
+      @dragLastX = e.offsetX
+      @dragLastY = e.offsetY
+      @didDrag = false
+
+  mouseMove: (e) =>
+    if @draggingObject == null
+      return
+
+    @didDrag = true
+    @draggingObject.x += e.offsetX - @dragLastX
+    @draggingObject.y += e.offsetY - @dragLastY
+    @dragLastX = e.offsetX
+    @dragLastY = e.offsetY
+    @redraw()
+
+  mouseUp: (e) =>
+    if !@didDrag
+      oldSelection = @selectedObject
+      if @selectedObject != null
+        @selectedObject.selected = false
+        @selectedObject = null
+
+      hit = @hitTest(e.offsetX, e.offsetY)
+      if hit != null && hit != oldSelection
+        hit.selected = true
+        @selectedObject = hit
+
+    @draggingObject = null
+    @redraw()
 
   setWidth:(@width) ->
     @width = width
@@ -43,6 +92,12 @@ class LevelCanvas
 
   addGameObject: (gameObject) ->
     @gameObjects.push(gameObject)
+
+  hitTest: (x,y) ->
+    for gameObject in @gameObjects
+      if gameObject.hitTest x,y
+        return gameObject
+    null 
 
   clear: ->
     @canvas.width = @canvas.width

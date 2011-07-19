@@ -34,11 +34,20 @@
         return loaded(this);
       }, this);
       this.imageObject.src = this.constructor.relativeImage();
+      this.selected = false;
     }
     GameObject.prototype.draw = function(canvas) {
-      var context;
+      var context, extra;
       context = canvas.getContext("2d");
+      extra = 2;
+      if (this.selected) {
+        context.fillStyle = "#00f";
+        context.fillRect(this.x - extra, this.y - extra, this.width + 2 * extra, this.height + 2 * extra);
+      }
       return context.drawImage(this.imageObject, this.x, this.y, this.width, this.height);
+    };
+    GameObject.prototype.hitTest = function(x, y) {
+      return x >= this.x && x <= this.x + this.width && y >= this.y && y <= this.y + this.height;
     };
     return GameObject;
   })();
@@ -63,8 +72,55 @@
   LevelCanvas = (function() {
     function LevelCanvas(canvas) {
       this.canvas = canvas;
+      this.mouseUp = __bind(this.mouseUp, this);
+      this.mouseMove = __bind(this.mouseMove, this);
+      this.mouseDown = __bind(this.mouseDown, this);
       this.gameObjects = [];
+      this.selectedObject = null;
+      this.draggingObject = null;
+      $(this.canvas).mouseup(this.mouseUp);
+      $(this.canvas).mousedown(this.mouseDown);
+      $(this.canvas).mousemove(this.mouseMove);
     }
+    LevelCanvas.prototype.mouseDown = function(e) {
+      var hit;
+      hit = this.hitTest(e.offsetX, e.offsetY);
+      if (hit !== null) {
+        this.draggingObject = hit;
+        console.log("Dragging!");
+        this.dragLastX = e.offsetX;
+        this.dragLastY = e.offsetY;
+        return this.didDrag = false;
+      }
+    };
+    LevelCanvas.prototype.mouseMove = function(e) {
+      if (this.draggingObject === null) {
+        return;
+      }
+      this.didDrag = true;
+      this.draggingObject.x += e.offsetX - this.dragLastX;
+      this.draggingObject.y += e.offsetY - this.dragLastY;
+      this.dragLastX = e.offsetX;
+      this.dragLastY = e.offsetY;
+      return this.redraw();
+    };
+    LevelCanvas.prototype.mouseUp = function(e) {
+      var hit, oldSelection;
+      if (!this.didDrag) {
+        oldSelection = this.selectedObject;
+        if (this.selectedObject !== null) {
+          this.selectedObject.selected = false;
+          this.selectedObject = null;
+        }
+        hit = this.hitTest(e.offsetX, e.offsetY);
+        if (hit !== null && hit !== oldSelection) {
+          hit.selected = true;
+          this.selectedObject = hit;
+        }
+      }
+      this.draggingObject = null;
+      return this.redraw();
+    };
     LevelCanvas.prototype.setWidth = function(width) {
       this.width = width;
       this.width = width;
@@ -72,6 +128,17 @@
     };
     LevelCanvas.prototype.addGameObject = function(gameObject) {
       return this.gameObjects.push(gameObject);
+    };
+    LevelCanvas.prototype.hitTest = function(x, y) {
+      var gameObject, _i, _len, _ref;
+      _ref = this.gameObjects;
+      for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+        gameObject = _ref[_i];
+        if (gameObject.hitTest(x, y)) {
+          return gameObject;
+        }
+      }
+      return null;
     };
     LevelCanvas.prototype.clear = function() {
       return this.canvas.width = this.canvas.width;
