@@ -1,11 +1,17 @@
 #Helpers
-Array.prototype.dict = ->
+Array::dict = ->
   ret = {}
   for e in this
     ret[e[0]] = e[1]
   ret
 
-Object.prototype.getClass = ->
+Array::set = ->
+  ret = {}
+  for e in this
+    ret[e[0]] = yes
+  ret
+
+Object::getClass = ->
   @constructor
 
 #Start implementation
@@ -16,7 +22,7 @@ class GameObject
   @relativeImage: =>
     "data/game_objects/#{@image}"
   @counter = 0
-  
+
   constructor: (@x, @y, loaded) ->
     @imageObject = new Image()
     @imageObject.onload = =>
@@ -27,6 +33,9 @@ class GameObject
     @id = GameObject.counter
     @imageObject.src = @constructor.relativeImage()
     @selected = false
+
+  integerProperties: ->
+    ["x","y"].set()
 
   draw: (canvas) ->
     context = canvas.getContext "2d"
@@ -39,6 +48,19 @@ class GameObject
   hitTest: (x,y) ->
     x >= @x && x <= @x + @width && y >= @y && y <= @y + @height
 
+  setProperty: (name, value) ->
+    if name of @integerProperties()
+      this[name] = parseInt(value, 10)
+    else
+      this[name] = value
+
+  propertyList: (names) ->
+    [e, this[e]] for e in names
+
+  properties: ->
+    @propertyList [
+      "x", "y"
+    ]
 
 class Paddle extends GameObject
   @name: "Wooden Paddle"
@@ -93,19 +115,6 @@ class LevelModel
     @gameObjectsById[gameObject.id] = gameObject
     @reorder()
 
-class LevelListing
-  constructor: (@dom, @levelModel) ->
-    @$dom = $(@dom)
-    $(@dom).html "<li>No objects...</li>"
-    @levelModel.addModelChangeCallback(@redraw)
-
-  clear: =>
-    $(@dom).empty()
-
-  redraw: =>
-    @clear()
-    for gameObject in @levelModel.gameObjects
-      @$dom.append($("<li class='listingObject#{if gameObject.selected then' selected' else ''}' data-id='#{gameObject.id}'>#{gameObject.getClass().name} @ #{gameObject.x}</li>"))
 
 
 class LevelCanvas
@@ -162,6 +171,51 @@ class LevelCanvas
     for gameObject in @levelModel.gameObjects
       gameObject.draw @canvas
 
+class LevelListing
+  constructor: (@node, @levelModel) ->
+    @$node = $(@node)
+    @$node.html "<li>No objects...</li>"
+    @levelModel.addModelChangeCallback(@redraw)
+
+  clear: =>
+    @$node.empty()
+
+  redraw: =>
+    @clear()
+    for gameObject in @levelModel.gameObjects
+      @$node.append($("<li class='listingObject#{if gameObject.selected then' selected' else ''}' data-id='#{gameObject.id}'>#{gameObject.getClass().name} @ #{gameObject.x}</li>"))
+
+class ObjectInspector
+  constructor: (@node, @levelModel) ->
+    @$node = $(@node)
+    @redraw()
+    @levelModel.addModelChangeCallback(@redraw)
+    $(".gameObjectProperty .value").live 'change', (e) =>
+      gameObject = @levelModel.getObjectById($(e.target).data('id'))
+      gameObject.setProperty e.target.name, e.target.value
+      $(e.target).val gameObject[e.target.name]
+      @levelModel.modelChanged()
+
+  redraw: =>
+    selected = @levelModel.selectedObject
+    if selected == null
+      @$node.text "No selection..."
+    else
+      @$node.html """
+        <h3>#{selected.getClass().name} Properties</h3>
+        #{@propertyListHTML(selected)}
+      """
+
+  propertyListHTML: (gameObject) ->
+    ret = for [name, val] in gameObject.properties()
+      """
+      <div class='gameObjectProperty'>
+        <label for="#{name}" class="name">#{name}</label> <input data-id="#{gameObject.id}" type='text' name="#{name}" class="value" value="#{val}" />
+      </div>
+      """
+    ret.join("")
+
+
 #Some globals
 gameObjectClasses = [
   Paddle,
@@ -188,6 +242,8 @@ $(document).ready ->
   levelModel = new LevelModel
   levelCanvas = new LevelCanvas canvas, levelModel
   levelListing = new LevelListing $("#levelListing").get(0), levelModel
+  objectInspetor = new ObjectInspector $("#objectInspector").get(0), levelModel
+
   $(".listingObject").live 'click', ->
     levelModel.select(levelModel.getObjectById($(this).data('id')))
 
