@@ -14,31 +14,28 @@ Object::getClass = ->
 # Properties
 #
 class IntegerProperty
-  constructor:((@name) -> )
-  convertString:(str) ->
-    parseInt str, 10
+  constructor:((@name, @get, @set) -> )
+  newPropertyListNode: ->
+    $("""
+    <label for="#{@name}" class="name">#{@name}</label> 
+    <input type='text' name="#{@name}" class="value" value="#{@get()}" />
+    """).bind 'change', (e) =>
+      @set parseInt(e.target.value, 10)
+      $(e.target).val @get()
 
 #
 # Widgets
 # 
 class LevelProperties
   constructor: (@node, @levelModel) ->
-    $(@node).html(@propertyListHTML())
-    $(".levelProperty .value").live 'change', (e) =>
-      gameProperty = LevelModel.getGamePropertyByName(e.target.name)
-      @levelModel[e.target.name] = gameProperty.convertString(e.target.value)
-      $(e.target).val @levelModel[e.target.name]
-      @levelModel.modelChanged()
+    @$node = $(@node)
+    @levelModel.addModelChangeCallback(@redraw)
+    @redraw()
 
-  propertyListHTML: ->
-    ret = for property in LevelModel.gameProperties
-      """
-      <div class='levelProperty'>
-        <label for="#{property.name}" class="name">#{property.name}</label> 
-        <input type='text' name="#{property.name}" class="value" value="#{@levelModel[property.name]}" />
-      </div>
-      """
-    ret.join("")
+  redraw: =>
+    @$node.empty()
+    for property in @levelModel.gameProperties()
+      @$node.append(property.newPropertyListNode()).append("<br />")
 
 class LevelCanvas
   constructor: (@canvas, @levelModel) ->
@@ -54,7 +51,7 @@ class LevelCanvas
         relativeTop = ui.offset.top - dPos.top
         relativeLeft = ui.offset.left - dPos.left
         klass = @levelModel.gameObjectClassByName[ui.draggable.data("gameObjectClass")]
-        gameObject = new klass(relativeLeft, relativeTop, (obj) =>
+        gameObject = new klass(relativeLeft, relativeTop, @levelModel, (obj) =>
           @levelModel.addGameObject gameObject)
     }
 
@@ -132,20 +129,9 @@ class ObjectInspector
     if selected == null
       @$node.text "No selection..."
     else
-      @$node.html """
-        <h3>#{selected.getClass().name} Properties</h3>
-        #{@propertyListHTML(selected)}
-      """
-
-  propertyListHTML: (gameObject) ->
-    ret = for property in gameObject.getClass().gameProperties
-      """
-      <div class='gameObjectProperty'>
-        <label for="#{property.name}" class="name">#{property.name}</label>
-        <input data-id="#{gameObject.id}" type='text' name="#{property.name}" class="value" value="#{gameObject[property.name]}" />
-      </div>
-      """
-    ret.join("")
+      @$node.empty().append("<h3>#{selected.getClass().name} Properties</h3>")
+      for property in selected.gameProperties()
+        @$node.append(property.newPropertyListNode()).append("<br />")
 
 class GameObjectSelector
   constructor: (@node, @levelModel) ->
@@ -170,16 +156,9 @@ class GameObject
   @image: "unknown.png"
   @relativeImage: =>
     "data/game_objects/#{@image}"
-  @gameProperties: [
-    new IntegerProperty("x"),
-    new IntegerProperty("y")
-  ]
   @counter = 0
-  @getGamePropertyByName: (name) ->
-    @_gamePropertiesByName or= ([e.name, e] for e in @gameProperties).dict()
-    @_gamePropertiesByName[name]
 
-  constructor: (@x, @y, loaded) ->
+  constructor: (@x, @y, @levelModel, loaded) ->
     @imageObject = new Image()
     @imageObject.onload = =>
       @width = @imageObject.width
@@ -197,6 +176,18 @@ class GameObject
       context.fillStyle = "#00f"
       context.fillRect @x - extra,@y - extra,@width + 2*extra,@height + 2*extra
     context.drawImage @imageObject, @x, @y, @width, @height
+  
+  gameProperties: ->
+    @_gameProperties or= [
+      new IntegerProperty("x", (=> @x), ((v) =>
+        @x = v
+        @levelModel.modelChanged()
+      ))
+      new IntegerProperty("y", (=> @y), ((v) =>
+        @y = v
+        @levelModel.modelChanged()
+      ))
+    ]
 
   hitTest: (x,y) ->
     x >= @x && x <= @x + @width && y >= @y && y <= @y + @height
@@ -219,14 +210,6 @@ class Fish extends GameObject
 #
 
 class LevelModel
-  @gameProperties = [
-    new IntegerProperty("width")
-  ]
-
-  @getGamePropertyByName: (name) ->
-    @_gamePropertiesByName or= ([e.name, e] for e in @gameProperties).dict()
-    @_gamePropertiesByName[name]
-
   constructor: ->
     @gameObjects = []
     @gameObjectsById = {}
@@ -273,6 +256,14 @@ class LevelModel
     @gameObjects.push(gameObject)
     @gameObjectsById[gameObject.id] = gameObject
     @reorder()
+
+  gameProperties: ->
+    @_gameProperties or= [
+      new IntegerProperty("width", (=> @width), ((val) =>
+        @width = val
+        @modelChanged()
+      ))
+    ]
 
 $(document).ready ->
   $("#objectTabs").tabs()
