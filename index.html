@@ -15,14 +15,6 @@
         <h3>Level editor for the Ballface iPhone Game</h3>
       </div>
 
-      <div class="outlineProperties">
-        <div class="property">
-          <b>Level width:</b>
-          <input type="text" id="levelWidth" /> <span id="levelWidthIPhones">6</span> iphones
-          <button id="levelWidthCommit">Make it so</button>
-        </div>
-      </div>
-
       <div class="editorContent">
         <div class="iphone4">
           <div class="editorCanvasWrapper">
@@ -33,21 +25,41 @@
         </div>
       </div>
 
-      <div id="levelListingWrapper">
-        <h2>Level Listing</h2>
-        <ul id="levelListing">
+
+      <div id="objectTabs">
+        <ul>
+          <li><a href="#tabs-1">Object Palette</a></li>
+          <li><a href="#tabs-2">Inspector</a></li>
+          <li><a href="#tabs-3">Listing</a></li>
+          <li><a href="#tabs-4">Level Properties</a></li>
         </ul>
-      </div>
 
-      <div id="objectInspectorWrapper">
-        <h2>Object Inspector</h2>
-        <div id="objectInspector">
+        <div id="tabs-1">
+          <div id="gameObjects">
+          </div>
+          <br class="clear" />
         </div>
-      </div>
 
-      <div id="gameObjectsWrapper">
-        <h2>Objects Palette</h2>
-        <div id="gameObjects">
+        <div id="tabs-2">
+          <div id="objectInspectorWrapper">
+            <div id="objectInspector">
+            </div>
+            <br class="clear" />
+          </div>
+        </div>
+
+        <div id="tabs-3">
+          <ul id="levelListing">
+          </ul>
+          <br class="clear" />
+        </div>
+
+        <div id="tabs-4">
+          <div id="levelPropertiesWrapper">
+            <div id="levelProperties">
+            </div>
+            <br class="clear" />
+          </div>
         </div>
       </div>
 

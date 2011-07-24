@@ -44,13 +44,6 @@ h2 {
   clear: both;
 }
 
-.generalProperties {
-
-}
-
-.editorContent {
-}
-
 .editorCanvasWrapper {
   width: 480px;
   overflow-x: scroll;
@@ -64,6 +57,11 @@ h2 {
   width: 300px;
   text-align: center;
   margin: 0 auto;
+}
+
+#objectTabs {
+  width: 720px;
+  margin: 30px auto;
 }
 
 #gameObjectsWrapper {
@@ -109,6 +107,9 @@ li.listingObject {
   font-size: 11pt;
   color: black;
   cursor: pointer;
+  border-top: 1px solid #ccc;
+  border-bottom: 1px solid #ccc;
+  padding: 2px;
 }
 
 li.listingObject.selected {
@@ -118,5 +119,5 @@ li.listingObject.selected {
 }
 
 li.listingObject:hover {
-  background-color: #9999FF;
+  background-color: #d0d0d0;
 }
