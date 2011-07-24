@@ -1,5 +1,5 @@
 (function() {
-  var GameObject, GameObjectSelector, GravityBall, LevelCanvas, LevelListing, LevelModel, LevelProperties, ObjectInspector, Paddle;
+  var Fish, GameObject, GameObjectSelector, GravityBall, IntegerProperty, LevelCanvas, LevelListing, LevelModel, LevelProperties, ObjectInspector, Paddle, _class;
   var __bind = function(fn, me){ return function(){ return fn.apply(me, arguments); }; }, __hasProp = Object.prototype.hasOwnProperty, __extends = function(child, parent) {
     for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; }
     function ctor() { this.constructor = child; }
@@ -17,38 +17,43 @@
     }
     return ret;
   };
-  Array.prototype.set = function() {
-    var e, ret, _i, _len;
-    ret = {};
-    for (_i = 0, _len = this.length; _i < _len; _i++) {
-      e = this[_i];
-      ret[e[0]] = true;
-    }
-    return ret;
-  };
   Object.prototype.getClass = function() {
     return this.constructor;
   };
+  IntegerProperty = (function() {
+    function IntegerProperty() {
+      _class.apply(this, arguments);
+    }
+    _class = (function(name) {
+      this.name = name;
+    });
+    IntegerProperty.prototype.convertString = function(str) {
+      return parseInt(str, 10);
+    };
+    return IntegerProperty;
+  })();
   LevelProperties = (function() {
     function LevelProperties(node, levelModel) {
       this.node = node;
       this.levelModel = levelModel;
       $(this.node).html(this.propertyListHTML());
       $(".levelProperty .value").live('change', __bind(function(e) {
-        levelModel.setProperty(e.target.name, e.target.value);
-        $(e.target).val(levelModel[e.target.name]);
+        var gameProperty;
+        gameProperty = LevelModel.getGamePropertyByName(e.target.name);
+        this.levelModel[e.target.name] = gameProperty.convertString(e.target.value);
+        $(e.target).val(this.levelModel[e.target.name]);
         return this.levelModel.modelChanged();
       }, this));
     }
     LevelProperties.prototype.propertyListHTML = function() {
-      var name, ret, val;
+      var property, ret;
       ret = (function() {
-        var _i, _len, _ref, _ref2, _results;
-        _ref = this.levelModel.properties();
+        var _i, _len, _ref, _results;
+        _ref = LevelModel.gameProperties;
         _results = [];
         for (_i = 0, _len = _ref.length; _i < _len; _i++) {
-          _ref2 = _ref[_i], name = _ref2[0], val = _ref2[1];
-          _results.push("<div class='levelProperty'>\n  <label for=\"" + name + "\" class=\"name\">" + name + "</label> <input type='text' name=\"" + name + "\" class=\"value\" value=\"" + val + "\" />\n</div>");
+          property = _ref[_i];
+          _results.push("<div class='levelProperty'>\n  <label for=\"" + property.name + "\" class=\"name\">" + property.name + "</label> \n  <input type='text' name=\"" + property.name + "\" class=\"value\" value=\"" + this.levelModel[property.name] + "\" />\n</div>");
         }
         return _results;
       }).call(this);
@@ -174,9 +179,10 @@
       this.redraw();
       this.levelModel.addModelChangeCallback(this.redraw);
       $(".gameObjectProperty .value").live('change', __bind(function(e) {
-        var gameObject;
+        var gameObject, gameProperty;
         gameObject = this.levelModel.getObjectById($(e.target).data('id'));
-        gameObject.setProperty(e.target.name, e.target.value);
+        gameProperty = gameObject.getClass().getGamePropertyByName(e.target.name);
+        gameObject[e.target.name] = gameProperty.convertString(e.target.value);
         $(e.target).val(gameObject[e.target.name]);
         return this.levelModel.modelChanged();
       }, this));
@@ -191,14 +197,14 @@
       }
     };
     ObjectInspector.prototype.propertyListHTML = function(gameObject) {
-      var name, ret, val;
+      var property, ret;
       ret = (function() {
-        var _i, _len, _ref, _ref2, _results;
-        _ref = gameObject.properties();
+        var _i, _len, _ref, _results;
+        _ref = gameObject.getClass().gameProperties;
         _results = [];
         for (_i = 0, _len = _ref.length; _i < _len; _i++) {
-          _ref2 = _ref[_i], name = _ref2[0], val = _ref2[1];
-          _results.push("<div class='gameObjectProperty'>\n  <label for=\"" + name + "\" class=\"name\">" + name + "</label> <input data-id=\"" + gameObject.id + "\" type='text' name=\"" + name + "\" class=\"value\" value=\"" + val + "\" />\n</div>");
+          property = _ref[_i];
+          _results.push("<div class='gameObjectProperty'>\n  <label for=\"" + property.name + "\" class=\"name\">" + property.name + "</label>\n  <input data-id=\"" + gameObject.id + "\" type='text' name=\"" + property.name + "\" class=\"value\" value=\"" + gameObject[property.name] + "\" />\n</div>");
         }
         return _results;
       })();
@@ -234,7 +240,22 @@
     GameObject.relativeImage = function() {
       return "data/game_objects/" + this.image;
     };
+    GameObject.gameProperties = [new IntegerProperty("x"), new IntegerProperty("y")];
     GameObject.counter = 0;
+    GameObject.getGamePropertyByName = function(name) {
+      var e;
+      this._gamePropertiesByName || (this._gamePropertiesByName = ((function() {
+        var _i, _len, _ref, _results;
+        _ref = this.gameProperties;
+        _results = [];
+        for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+          e = _ref[_i];
+          _results.push([e.name, e]);
+        }
+        return _results;
+      }).call(this)).dict());
+      return this._gamePropertiesByName[name];
+    };
     function GameObject(x, y, loaded) {
       this.x = x;
       this.y = y;
@@ -250,9 +271,6 @@
       this.imageObject.src = this.constructor.relativeImage();
       this.selected = false;
     }
-    GameObject.prototype.integerProperties = function() {
-      return ["x", "y"].set();
-    };
     GameObject.prototype.draw = function(canvas) {
       var context, extra;
       context = canvas.getContext("2d");
@@ -265,25 +283,6 @@
     };
     GameObject.prototype.hitTest = function(x, y) {
       return x >= this.x && x <= this.x + this.width && y >= this.y && y <= this.y + this.height;
-    };
-    GameObject.prototype.setProperty = function(name, value) {
-      if (name in this.integerProperties()) {
-        return this[name] = parseInt(value, 10);
-      } else {
-        return this[name] = value;
-      }
-    };
-    GameObject.prototype.propertyList = function(names) {
-      var e, _i, _len, _results;
-      _results = [];
-      for (_i = 0, _len = names.length; _i < _len; _i++) {
-        e = names[_i];
-        _results.push([e, this[e]]);
-      }
-      return _results;
-    };
-    GameObject.prototype.properties = function() {
-      return this.propertyList(["x", "y"]);
     };
     return GameObject;
   })();
@@ -305,7 +304,31 @@
     GravityBall.image = "gravityball.png";
     return GravityBall;
   })();
+  Fish = (function() {
+    __extends(Fish, GameObject);
+    function Fish() {
+      Fish.__super__.constructor.apply(this, arguments);
+    }
+    Fish.name = "Fish";
+    Fish.image = "fishEnemy.png";
+    return Fish;
+  })();
   LevelModel = (function() {
+    LevelModel.gameProperties = [new IntegerProperty("width")];
+    LevelModel.getGamePropertyByName = function(name) {
+      var e;
+      this._gamePropertiesByName || (this._gamePropertiesByName = ((function() {
+        var _i, _len, _ref, _results;
+        _ref = this.gameProperties;
+        _results = [];
+        for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+          e = _ref[_i];
+          _results.push([e.name, e]);
+        }
+        return _results;
+      }).call(this)).dict());
+      return this._gamePropertiesByName[name];
+    };
     function LevelModel() {
       var c;
       this.gameObjects = [];
@@ -313,7 +336,7 @@
       this.selectedObject = null;
       this.modelChangeCallbacks = [];
       this.width = 960;
-      this.gameObjectClasses = [Paddle, GravityBall];
+      this.gameObjectClasses = [Paddle, GravityBall, Fish];
       this.gameObjectClassByName = ((function() {
         var _i, _len, _ref, _results;
         _ref = this.gameObjectClasses;
@@ -379,21 +402,6 @@
       this.gameObjects.push(gameObject);
       this.gameObjectsById[gameObject.id] = gameObject;
       return this.reorder();
-    };
-    LevelModel.prototype.setProperty = function(name, value) {
-      return this[name] = parseInt(value, 10);
-    };
-    LevelModel.prototype.propertyList = function(names) {
-      var e, _i, _len, _results;
-      _results = [];
-      for (_i = 0, _len = names.length; _i < _len; _i++) {
-        e = names[_i];
-        _results.push([e, this[e]]);
-      }
-      return _results;
-    };
-    LevelModel.prototype.properties = function() {
-      return this.propertyList(["width"]);
     };
     return LevelModel;
   })();

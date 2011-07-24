@@ -1,18 +1,22 @@
-#Helpers
+#
+# Convinience 
+#
 Array::dict = ->
   ret = {}
   for e in this
     ret[e[0]] = e[1]
   ret
 
-Array::set = ->
-  ret = {}
-  for e in this
-    ret[e[0]] = yes
-  ret
-
 Object::getClass = ->
   @constructor
+
+#
+# Properties
+#
+class IntegerProperty
+  constructor:((@name) -> )
+  convertString:(str) ->
+    parseInt str, 10
 
 #
 # Widgets
@@ -21,15 +25,17 @@ class LevelProperties
   constructor: (@node, @levelModel) ->
     $(@node).html(@propertyListHTML())
     $(".levelProperty .value").live 'change', (e) =>
-      levelModel.setProperty e.target.name, e.target.value
-      $(e.target).val levelModel[e.target.name]
+      gameProperty = LevelModel.getGamePropertyByName(e.target.name)
+      @levelModel[e.target.name] = gameProperty.convertString(e.target.value)
+      $(e.target).val @levelModel[e.target.name]
       @levelModel.modelChanged()
 
   propertyListHTML: ->
-    ret = for [name, val] in @levelModel.properties()
+    ret = for property in LevelModel.gameProperties
       """
       <div class='levelProperty'>
-        <label for="#{name}" class="name">#{name}</label> <input type='text' name="#{name}" class="value" value="#{val}" />
+        <label for="#{property.name}" class="name">#{property.name}</label> 
+        <input type='text' name="#{property.name}" class="value" value="#{@levelModel[property.name]}" />
       </div>
       """
     ret.join("")
@@ -116,7 +122,8 @@ class ObjectInspector
     @levelModel.addModelChangeCallback(@redraw)
     $(".gameObjectProperty .value").live 'change', (e) =>
       gameObject = @levelModel.getObjectById($(e.target).data('id'))
-      gameObject.setProperty e.target.name, e.target.value
+      gameProperty = gameObject.getClass().getGamePropertyByName(e.target.name)
+      gameObject[e.target.name] = gameProperty.convertString(e.target.value)
       $(e.target).val gameObject[e.target.name]
       @levelModel.modelChanged()
 
@@ -131,10 +138,11 @@ class ObjectInspector
       """
 
   propertyListHTML: (gameObject) ->
-    ret = for [name, val] in gameObject.properties()
+    ret = for property in gameObject.getClass().gameProperties
       """
       <div class='gameObjectProperty'>
-        <label for="#{name}" class="name">#{name}</label> <input data-id="#{gameObject.id}" type='text' name="#{name}" class="value" value="#{val}" />
+        <label for="#{property.name}" class="name">#{property.name}</label>
+        <input data-id="#{gameObject.id}" type='text' name="#{property.name}" class="value" value="#{gameObject[property.name]}" />
       </div>
       """
     ret.join("")
@@ -156,12 +164,20 @@ class GameObjectSelector
 #
 # Game objects
 # 
+
 class GameObject
   @name: "Unknown"
   @image: "unknown.png"
   @relativeImage: =>
     "data/game_objects/#{@image}"
+  @gameProperties: [
+    new IntegerProperty("x"),
+    new IntegerProperty("y")
+  ]
   @counter = 0
+  @getGamePropertyByName: (name) ->
+    @_gamePropertiesByName or= ([e.name, e] for e in @gameProperties).dict()
+    @_gamePropertiesByName[name]
 
   constructor: (@x, @y, loaded) ->
     @imageObject = new Image()
@@ -174,9 +190,6 @@ class GameObject
     @imageObject.src = @constructor.relativeImage()
     @selected = false
 
-  integerProperties: ->
-    ["x","y"].set()
-
   draw: (canvas) ->
     context = canvas.getContext "2d"
     extra = 2
@@ -188,19 +201,6 @@ class GameObject
   hitTest: (x,y) ->
     x >= @x && x <= @x + @width && y >= @y && y <= @y + @height
 
-  setProperty: (name, value) ->
-    if name of @integerProperties()
-      this[name] = parseInt(value, 10)
-    else
-      this[name] = value
-
-  propertyList: (names) ->
-    [e, this[e]] for e in names
-
-  properties: ->
-    @propertyList [
-      "x", "y"
-    ]
 
 class Paddle extends GameObject
   @name: "Wooden Paddle"
@@ -210,18 +210,30 @@ class GravityBall extends GameObject
   @name: "Gravity Ball"
   @image: "gravityball.png"
 
+class Fish extends GameObject
+  @name: "Fish"
+  @image: "fishEnemy.png"
+
 #
 # -The- level
 #
 
 class LevelModel
+  @gameProperties = [
+    new IntegerProperty("width")
+  ]
+
+  @getGamePropertyByName: (name) ->
+    @_gamePropertiesByName or= ([e.name, e] for e in @gameProperties).dict()
+    @_gamePropertiesByName[name]
+
   constructor: ->
     @gameObjects = []
     @gameObjectsById = {}
     @selectedObject = null
     @modelChangeCallbacks = []
     @width = 960
-    @gameObjectClasses = [Paddle, GravityBall]
+    @gameObjectClasses = [Paddle, GravityBall, Fish]
     @gameObjectClassByName = ([c.name,c] for c in @gameObjectClasses).dict()
 
   hitTest: (x,y) ->
@@ -261,17 +273,6 @@ class LevelModel
     @gameObjects.push(gameObject)
     @gameObjectsById[gameObject.id] = gameObject
     @reorder()
-
-  setProperty: (name, value) ->
-    this[name] = parseInt value, 10
-
-  propertyList: (names) ->
-    [e, this[e]] for e in names
-
-  properties: ->
-    @propertyList [
-      "width"
-    ]
 
 $(document).ready ->
   $("#objectTabs").tabs()
