@@ -8,7 +8,11 @@ body {
 
 h1 {
   font-weight: bold;
-  font-size: 30pt;
+  font-size: 70pt;
+}
+
+h1 .small {
+  font-size: 12pt;
 }
 
 h2 {
