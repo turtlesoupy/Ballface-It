@@ -51,6 +51,7 @@ h2 {
 .editorCanvasWrapper {
   width: 480px;
   overflow-x: scroll;
+  overflow-y: hidden;
 }
 
 #editorCanvas {

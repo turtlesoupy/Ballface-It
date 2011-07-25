@@ -1,0 +1,49 @@
+!!! 5
+html(lang="en")
+  head
+    link(rel="stylesheet", type="text/css", href="stylesheets/reset.css")
+    link(rel="stylesheet", type="text/css", href="stylesheets/ballface_it.css")
+    link(rel="stylesheet", type="text/css", href="stylesheets/smoothness/jquery-ui-1.8.14.custom.css")
+    script(type="text/javascript", src="js/jquery-1.6.2.js")
+    script(type="text/javascript", src="js/jquery-ui-1.8.14.custom.min.js")
+    script(type="text/javascript", src="js/ballface_it.js")
+    title Ballface It!
+
+  body
+    #wrapper
+      .header
+        h1
+          span.small Ball
+          |Face It
+        h3 Level editor for the Ballface iPhone game
+
+      .editorContent
+        .iphone4
+          .editorCanvasWrapper
+            canvas#editorCanvas(height="320", width="960") Your browser doesn't support canvas
+
+      #objectTabs
+        ul
+          li: a(href="#tabs-1") Object Palette
+          li: a(href="#tabs-2") Inspector
+          li: a(href="#tabs-3") Listing
+          li: a(href="#tabs-4") Level Properties
+
+        #tabs-1 
+          #gameObjects
+          br.clear
+        #tabs-2
+          #objectInspectorWrapper
+            #objectInspector
+            br.clear
+        #tabs-3
+          ul#levelListing
+          br.clear
+        #tabs-4
+          #levelPropertiesWrapper
+            #levelProperties
+            br.clear 
+      br.clear
+      .footer
+        | &copy 2011
+        a(href="http://www.argteam.com") Arg! Team

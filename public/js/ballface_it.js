@@ -1,5 +1,5 @@
 (function() {
-  var Fish, GameObject, GameObjectSelector, GravityBall, IntegerProperty, LevelCanvas, LevelListing, LevelModel, LevelProperties, ObjectInspector, Paddle, _class;
+  var Fish, GameObject, GameObjectSelector, GravityBall, IntegerProperty, LevelCanvas, LevelListing, LevelModel, LevelProperties, ObjectInspector, Paddle, StringProperty, VERSION, _class, _class2;
   var __bind = function(fn, me){ return function(){ return fn.apply(me, arguments); }; }, __hasProp = Object.prototype.hasOwnProperty, __extends = function(child, parent) {
     for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; }
     function ctor() { this.constructor = child; }
@@ -8,6 +8,7 @@
     child.__super__ = parent.prototype;
     return child;
   };
+  VERSION = 0.1;
   Array.prototype.dict = function() {
     var e, ret, _i, _len;
     ret = {};
@@ -36,6 +37,23 @@
       }, this));
     };
     return IntegerProperty;
+  })();
+  StringProperty = (function() {
+    function StringProperty() {
+      _class2.apply(this, arguments);
+    }
+    _class2 = (function(name, get, set) {
+      this.name = name;
+      this.get = get;
+      this.set = set;
+    });
+    StringProperty.prototype.newPropertyListNode = function() {
+      return $("<label for=\"" + this.name + "\" class=\"name\">" + this.name + "</label> \n<input type='text' name=\"" + this.name + "\" class=\"value\" value=\"" + (this.get()) + "\" />").bind('change', __bind(function(e) {
+        this.set(e.target.value);
+        return $(e.target).val(this.get());
+      }, this));
+    };
+    return StringProperty;
   })();
   LevelProperties = (function() {
     function LevelProperties(node, levelModel) {
@@ -313,6 +331,7 @@
       this.selectedObject = null;
       this.modelChangeCallbacks = [];
       this.width = 960;
+      this.levelName = "Unnamed level";
       this.gameObjectClasses = [Paddle, GravityBall, Fish];
       this.gameObjectClassByName = ((function() {
         var _i, _len, _ref, _results;
@@ -382,13 +401,24 @@
     };
     LevelModel.prototype.gameProperties = function() {
       return this._gameProperties || (this._gameProperties = [
-        new IntegerProperty("width", (__bind(function() {
+        new StringProperty("levelName", (__bind(function() {
+          return this.levelName;
+        }, this)), __bind(function(val) {
+          return this.levelName = val;
+        }, this)), new IntegerProperty("width", (__bind(function() {
           return this.width;
         }, this)), (__bind(function(val) {
           this.width = val;
           return this.modelChanged();
         }, this)))
       ]);
+    };
+    LevelModel.prototype.serialized = function() {
+      return {
+        levelName: this.levelName,
+        width: this.width,
+        editorVersion: VERSION
+      };
     };
     return LevelModel;
   })();

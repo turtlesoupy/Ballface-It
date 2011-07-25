@@ -1,3 +1,5 @@
+VERSION = 0.1
+
 #
 # Convinience 
 #
@@ -23,6 +25,15 @@ class IntegerProperty
       @set parseInt(e.target.value, 10)
       $(e.target).val @get()
 
+class StringProperty
+  constructor:((@name, @get, @set) -> )
+  newPropertyListNode: ->
+    $("""
+    <label for="#{@name}" class="name">#{@name}</label> 
+    <input type='text' name="#{@name}" class="value" value="#{@get()}" />
+    """).bind 'change', (e) =>
+      @set e.target.value
+      $(e.target).val @get()
 #
 # Widgets
 # 
@@ -192,7 +203,6 @@ class GameObject
   hitTest: (x,y) ->
     x >= @x && x <= @x + @width && y >= @y && y <= @y + @height
 
-
 class Paddle extends GameObject
   @name: "Wooden Paddle"
   @image: "paddle.png"
@@ -216,6 +226,7 @@ class LevelModel
     @selectedObject = null
     @modelChangeCallbacks = []
     @width = 960
+    @levelName = "Unnamed level"
     @gameObjectClasses = [Paddle, GravityBall, Fish]
     @gameObjectClassByName = ([c.name,c] for c in @gameObjectClasses).dict()
 
@@ -259,11 +270,19 @@ class LevelModel
 
   gameProperties: ->
     @_gameProperties or= [
+      new StringProperty("levelName", (=> @levelName), (val) => @levelName = val),
       new IntegerProperty("width", (=> @width), ((val) =>
         @width = val
         @modelChanged()
       ))
     ]
+
+  serialized: ->
+    {
+      levelName: @levelName
+      width: @width
+      editorVersion: VERSION
+    }
 
 $(document).ready ->
   $("#objectTabs").tabs()
