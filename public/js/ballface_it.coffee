@@ -53,7 +53,6 @@ class LevelProperties extends Base
 
 class LevelCanvas extends Base
   constructor: (@canvas, @levelModel) ->
-    @selectedObject = null
     @draggingObject = null
     $(@canvas).mouseup @mouseUp
     $(@canvas).mousedown @mouseDown
@@ -71,12 +70,12 @@ class LevelCanvas extends Base
 
   mouseDown: (e) =>
     hit = @levelModel.hitTest(e.offsetX, e.offsetY)
+    @didDrag = false
     if hit != null
       $(@canvas).css "cursor", "move"
       @draggingObject = hit
       @dragLastX = e.offsetX
       @dragLastY = e.offsetY
-      @didDrag = false
 
   mouseMove: (e) =>
     if @draggingObject == null
@@ -171,21 +170,29 @@ class SavedLister extends Base
     @$node.html "<div class='loader'/>"
     $.get "/list", (data) =>
       @data = data
-      console.dir data
       @redraw()
 
   redraw: ->
     html = for levelData in @data
       saveTime = new Date(levelData.saveTime)
+      nameData = "#{levelData.name} @ #{saveTime}"
       """
       <li class="levelItem">
         <span class="name">#{levelData.name}</span> @ #{saveTime}
+        [<a href="/download/#{levelData.id}" class="loadLevel" data-name="#{nameData}">Load</a>]
         [<a href="/download/#{levelData.id}">Download</a>]
-        [<a href="/delete/#{levelData.id}" class="deleteLevel" data-name="#{levelData.name} @ #{saveTime}">Delete</a>]
+        [<a href="/delete/#{levelData.id}" class="deleteLevel" data-name="#{nameData}">Delete</a>]
       </li>
       """
 
     @$node.html "<ul>#{html.join("")}</ul>"
+    @$node.find(".loadLevel").click (e) =>
+      e.preventDefault()
+      if confirm("Are you sure you want to load #{$(e.target).data('name')}? This will trash your current level.")
+        $.get e.target.href, (data) =>
+          if data.level
+            @levelModel.deserialize data.level
+
     @$node.find(".deleteLevel").click (e) =>
       e.preventDefault()
       if confirm("Are you sure you want to delete #{$(e.target).data('name')}?")
@@ -202,6 +209,9 @@ class GameObject extends Base
   @relativeImage: =>
     "data/game_objects/#{@image}"
   @counter = 0
+
+  @deserializeNew: (data, levelModel, loaded) =>
+    new this(data.x, data.y, levelModel, loaded)
 
   constructor: (@x, @y, @levelModel, loaded) ->
     @imageObject = new Image()
@@ -326,6 +336,17 @@ class LevelModel extends Base
       editorVersion: VERSION
     }
 
+  deserialize: (object) ->
+    @selectedObject = null
+    @levelName = object.levelName
+    @width = object.width
+    @gameObjects = []
+    @gameObjectsById = {}
+    for e in object.objects
+      @gameObjectClassByName[e.type].deserializeNew e, @levelModel, (gameObject) =>
+        @addGameObject(gameObject)
+        @modelChanged()
+
 $(document).ready ->
   levelModel = new LevelModel
   levelCanvas = new LevelCanvas $("#editorCanvas").get(0), levelModel
@@ -345,9 +366,9 @@ $(document).ready ->
     $.ajax {
       type: "POST"
       url: "/save"
-      data:
-        level: levelModel.serialized()
+      data: JSON.stringify({level: levelModel.serialized()})
       dataType: "json"
+      contentType: "application/json"
       success: ->
         $("#saveLevelSubmit").attr 'disabled', false
         savedLister.repopulate()
