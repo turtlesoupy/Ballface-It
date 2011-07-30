@@ -126,3 +126,18 @@ li.listingObject.selected {
 li.listingObject:hover {
   background-color: #d0d0d0;
 }
+
+#levelSaves {
+  font-size: 8pt;
+}
+
+#levelSaves .name {
+  font-weight: bold;
+}
+
+.loader {
+  background-image: url("/images/pacman_loader.gif");
+  width: 24px;
+  height: 24px;
+  margin: 10px auto;
+}

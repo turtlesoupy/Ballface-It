@@ -1,21 +1,24 @@
 VERSION = 0.1
+SAVES_INDEX = 4
 
 #
 # Convinience 
 #
-Array::dict = ->
+Array.prototype.dict = ->
   ret = {}
   for e in this
     ret[e[0]] = e[1]
   ret
 
-Object::getClass = ->
-  @constructor
+#Not placing on the object prototype due to serialization concerns
+class Base
+  getClass: ->
+    @constructor
 
 #
 # Properties
 #
-class IntegerProperty
+class IntegerProperty extends Base
   constructor:((@name, @get, @set) -> )
   newPropertyListNode: ->
     $("""
@@ -25,7 +28,7 @@ class IntegerProperty
       @set parseInt(e.target.value, 10)
       $(e.target).val @get()
 
-class StringProperty
+class StringProperty extends Base
   constructor:((@name, @get, @set) -> )
   newPropertyListNode: ->
     $("""
@@ -37,7 +40,7 @@ class StringProperty
 #
 # Widgets
 # 
-class LevelProperties
+class LevelProperties extends Base
   constructor: (@node, @levelModel) ->
     @$node = $(@node)
     @levelModel.addModelChangeCallback(@redraw)
@@ -48,7 +51,7 @@ class LevelProperties
     for property in @levelModel.gameProperties()
       @$node.append(property.newPropertyListNode()).append("<br />")
 
-class LevelCanvas
+class LevelCanvas extends Base
   constructor: (@canvas, @levelModel) ->
     @selectedObject = null
     @draggingObject = null
@@ -107,7 +110,7 @@ class LevelCanvas
     for gameObject in @levelModel.gameObjects
       gameObject.draw @canvas
 
-class LevelListing
+class LevelListing extends Base
   constructor: (@node, @levelModel) ->
     @$node = $(@node)
     @$node.html "<li>No objects...</li>"
@@ -123,7 +126,7 @@ class LevelListing
     for gameObject in @levelModel.gameObjects
       @$node.append($("<li class='listingObject#{if gameObject.selected then' selected' else ''}' data-id='#{gameObject.id}'>#{gameObject.getClass().name} @ #{gameObject.x}</li>"))
 
-class ObjectInspector
+class ObjectInspector extends Base
   constructor: (@node, @levelModel) ->
     @$node = $(@node)
     @redraw()
@@ -144,7 +147,7 @@ class ObjectInspector
       for property in selected.gameProperties()
         @$node.append(property.newPropertyListNode()).append("<br />")
 
-class GameObjectSelector
+class GameObjectSelector extends Base
   constructor: (@node, @levelModel) ->
     html = for gameObjectClass in @levelModel.gameObjectClasses
       """
@@ -158,11 +161,42 @@ class GameObjectSelector
     $(@node).append html.join("")
     $(".gameObjectImage" ).draggable {helper: 'clone'}
 
+class SavedLister extends Base
+  constructor: (@node, @levelModel) ->
+    @$node = $(@node)
+    @data = []
+    @redraw()
+
+  repopulate: ->
+    @$node.html "<div class='loader'/>"
+    $.get "/list", (data) =>
+      @data = data
+      console.dir data
+      @redraw()
+
+  redraw: ->
+    html = for levelData in @data
+      saveTime = new Date(levelData.saveTime)
+      """
+      <li class="levelItem">
+        <span class="name">#{levelData.name}</span> @ #{saveTime}
+        [<a href="/download/#{levelData.id}">Download</a>]
+        [<a href="/delete/#{levelData.id}" class="deleteLevel" data-name="#{levelData.name} @ #{saveTime}">Delete</a>]
+      </li>
+      """
+
+    @$node.html "<ul>#{html.join("")}</ul>"
+    @$node.find(".deleteLevel").click (e) =>
+      e.preventDefault()
+      if confirm("Are you sure you want to delete #{$(e.target).data('name')}?")
+        $.get e.target.href, =>
+          @repopulate()
+
 #
 # Game objects
 # 
 
-class GameObject
+class GameObject extends Base
   @name: "Unknown"
   @image: "unknown.png"
   @relativeImage: =>
@@ -203,6 +237,13 @@ class GameObject
   hitTest: (x,y) ->
     x >= @x && x <= @x + @width && y >= @y && y <= @y + @height
 
+  serialized: ->
+    {
+      type: @getClass().name
+      x: @x
+      y: @y
+    }
+
 class Paddle extends GameObject
   @name: "Wooden Paddle"
   @image: "paddle.png"
@@ -219,7 +260,7 @@ class Fish extends GameObject
 # -The- level
 #
 
-class LevelModel
+class LevelModel extends Base
   constructor: ->
     @gameObjects = []
     @gameObjectsById = {}
@@ -280,17 +321,39 @@ class LevelModel
   serialized: ->
     {
       levelName: @levelName
+      objects: e.serialized() for e in @gameObjects
       width: @width
       editorVersion: VERSION
     }
 
 $(document).ready ->
-  $("#objectTabs").tabs()
-
-  canvas = $("#editorCanvas").get(0)
   levelModel = new LevelModel
-  levelCanvas = new LevelCanvas canvas, levelModel
+  levelCanvas = new LevelCanvas $("#editorCanvas").get(0), levelModel
   levelListing = new LevelListing $("#levelListing").get(0), levelModel
   objectInspetor = new ObjectInspector $("#objectInspector").get(0), levelModel
   levelProperties = new LevelProperties $("#levelProperties").get(0), levelModel
   gameObjectSelector = new GameObjectSelector $("#gameObjects").get(0), levelModel
+  savedLister = new SavedLister $("#levelSaves").get(0), levelModel
+
+  $("#objectTabs").tabs().bind 'tabsselect', (e, ui) ->
+    if ui.index == SAVES_INDEX
+      savedLister.repopulate()
+
+  $("#saveLevel").submit (e) ->
+    e.preventDefault()
+    $("#saveLevelSubmit").attr 'disabled', true
+    $.ajax {
+      type: "POST"
+      url: "/save"
+      data:
+        level: levelModel.serialized()
+      dataType: "json"
+      success: ->
+        $("#saveLevelSubmit").attr 'disabled', false
+        savedLister.repopulate()
+      error: ->
+        $("#saveLevelSubmit").attr 'disabled', false
+        alert 'Failed to save!'
+    }
+
+

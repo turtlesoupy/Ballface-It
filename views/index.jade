@@ -28,6 +28,7 @@ html(lang="en")
           li: a(href="#tabs-2") Inspector
           li: a(href="#tabs-3") Listing
           li: a(href="#tabs-4") Level Properties
+          li: a(href="#tabs-5") Saves
 
         #tabs-1 
           #gameObjects
@@ -42,8 +43,15 @@ html(lang="en")
         #tabs-4
           #levelPropertiesWrapper
             #levelProperties
-            br.clear 
-      br.clear
+          br.clear 
+        #tabs-5
+          #saveWrapper
+            #levelSaves
+            form#saveLevel(action="/save", method="POST")
+              input#saveLevelSubmit(type="submit", value="Save Current Level")
+          br.clear
+
+        
       .footer
         | &copy 2011
         a(href="http://www.argteam.com") Arg! Team
