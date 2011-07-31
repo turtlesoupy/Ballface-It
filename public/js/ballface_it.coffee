@@ -329,6 +329,18 @@ class Fish extends GameObject
   @name: "Fish"
   @image: "fishEnemy.png"
 
+class BigPlank extends GameObject
+  @name: "BigPlank"
+  @image: "Planks-4x1.png"
+
+class MediumPlank extends GameObject
+  @name: "MediumPlank"
+  @image: "Planks-3x1.png"
+
+class SmallPlank extends GameObject
+  @name: "SmallPlank"
+  @image: "Planks-2x1.png"
+
 #
 # -The- level
 #
@@ -341,7 +353,7 @@ class LevelModel extends Base
     @modelChangeCallbacks = []
     @width = 960
     @levelName = "Unnamed level"
-    @gameObjectClasses = [Paddle, GravityBall, Fish]
+    @gameObjectClasses = [Paddle, GravityBall, Fish, SmallPlank, MediumPlank, BigPlank]
     @gameObjectClassByName = ([c.name,c] for c in @gameObjectClasses).dict()
 
   hitTest: (x,y) ->
@@ -381,6 +393,14 @@ class LevelModel extends Base
     @gameObjects.push(gameObject)
     @gameObjectsById[gameObject.id] = gameObject
     @reorder()
+
+  deleteGameObject: (gameObject) ->
+    @gameObjects = (e for e in @gameObjects when e.id != gameObject.id)
+    delete @gameObjectsById[gameObject.id]
+    if @selectedObject == gameObject
+      @unselectAll()
+    @modelChanged()
+
 
   gameProperties: ->
     @_gameProperties or= [
@@ -440,4 +460,6 @@ $(document).ready ->
         alert 'Failed to save!'
     }
 
-
+  $(document).bind 'keydown', (e) ->
+    if levelModel.selectedObject != null && e.keyCode == 46 #Delete
+      levelModel.deleteGameObject levelModel.selectedObject
