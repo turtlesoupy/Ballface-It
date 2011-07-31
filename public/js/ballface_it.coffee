@@ -28,6 +28,16 @@ class IntegerProperty extends Base
       @set parseInt(e.target.value, 10)
       $(e.target).val @get()
 
+class FloatProperty extends Base
+  constructor:((@name, @get, @set) -> )
+  newPropertyListNode: ->
+    $("""
+    <label for="#{@name}" class="name">#{@name}</label> 
+    <input type='text' name="#{@name}" class="value" value="#{@get()}" />
+    """).bind 'change', (e) =>
+      @set parseFloat(e.target.value)
+      $(e.target).val @get()
+
 class StringProperty extends Base
   constructor:((@name, @get, @set) -> )
   newPropertyListNode: ->
@@ -54,6 +64,7 @@ class LevelProperties extends Base
 class LevelCanvas extends Base
   constructor: (@canvas, @levelModel) ->
     @draggingObject = null
+    @$canvas = $(@canvas)
     $(@canvas).mouseup @mouseUp
     $(@canvas).mousedown @mouseDown
     $(@canvas).mousemove @mouseMove
@@ -69,15 +80,28 @@ class LevelCanvas extends Base
     }
 
   mouseDown: (e) =>
+    e.preventDefault()
     hit = @levelModel.hitTest(e.offsetX, e.offsetY)
     @didDrag = false
     if hit != null
-      $(@canvas).css "cursor", "move"
       @draggingObject = hit
       @dragLastX = e.offsetX
       @dragLastY = e.offsetY
+      @$canvas.css('cursor', 'move')
+    @startX = e.offsetX
+    @startY = e.offsetY
+    if @levelModel.selectedObject
+      @startedRotation = true
+      @startRotation = @levelModel.selectedObject.rotation
 
   mouseMove: (e) =>
+    e.preventDefault()
+    if @startedRotation && e.altKey && @levelModel.selectedObject != null
+      @$canvas.css('cursor', 'e-resize')
+      @levelModel.selectedObject.rotation = @startRotation + (e.offsetX - @startX)
+      @redraw()
+      return
+
     if @draggingObject == null
       return
 
@@ -89,7 +113,7 @@ class LevelCanvas extends Base
     @redraw()
 
   mouseUp: (e) =>
-    $(@canvas).css "cursor", ""
+    e.preventDefault()
     if !@didDrag
       hit = @levelModel.hitTest(e.offsetX, e.offsetY)
       if hit != null
@@ -100,6 +124,8 @@ class LevelCanvas extends Base
       @levelModel.reorder()
 
     @draggingObject = null
+    @startedRotation = false
+    @$canvas.css('cursor', '')
 
   clear: ->
     @canvas.width = @levelModel.width
@@ -211,9 +237,12 @@ class GameObject extends Base
   @counter = 0
 
   @deserializeNew: (data, levelModel, loaded) =>
-    new this(data.x, data.y, levelModel, loaded)
+    ret = new this(data.x, data.y, levelModel, loaded)
+    ret.rotation = data.rotation || 0
+    ret
 
   constructor: (@x, @y, @levelModel, loaded) ->
+    @rotation = 0
     @imageObject = new Image()
     @imageObject.onload = =>
       @width = @imageObject.width
@@ -223,40 +252,74 @@ class GameObject extends Base
     @id = GameObject.counter
     @imageObject.src = @constructor.relativeImage()
     @selected = false
+    @weightedOriginX = 0.5
+    @weightedOriginY = 0.5
 
   draw: (canvas) ->
     context = canvas.getContext "2d"
+    context.save()
+    [transX, transY] = @originPoint()
+    context.translate(transX, transY)
+    context.rotate(@rotation * Math.PI / 180)
+    context.translate(-transX, -transY)
     extra = 2
     if @selected
       context.fillStyle = "#00f"
       context.fillRect @x - extra,@y - extra,@width + 2*extra,@height + 2*extra
     context.drawImage @imageObject, @x, @y, @width, @height
+    context.restore()
+
+  originPoint: ->
+    [@x + @weightedOriginX * @width, @y + @weightedOriginY * @height]
+
+  convertToLocalSpace: (x,y) ->
+    [originX, originY] = @originPoint()
+    xp = x - originX
+    yp = y - originY
+    st = Math.sin(@rotation * Math.PI / 180)
+    ct = Math.cos(@rotation * Math.PI / 180)
+    xr = ct * xp + st * yp
+    yr = -st * xp + ct * yp
+    [xr, yr]
   
   gameProperties: ->
     @_gameProperties or= [
       new IntegerProperty("x", (=> @x), ((v) =>
         @x = v
         @levelModel.modelChanged()
-      ))
+      )),
       new IntegerProperty("y", (=> @y), ((v) =>
         @y = v
+        @levelModel.modelChanged()
+      )),
+      new FloatProperty("rotation", (=> @rotation), ((v) =>
+        @rotation = v
         @levelModel.modelChanged()
       ))
     ]
 
   hitTest: (x,y) ->
-    x >= @x && x <= @x + @width && y >= @y && y <= @y + @height
+    [localX, localY] =  @convertToLocalSpace(x,y)
+    [originX, originY] = @originPoint()
+    newX = localX + originX
+    newY = localY + originY
+    newX >= @x && newX <= @x + @width && newY >= @y && newY <= @y + @height
 
   serialized: ->
     {
       type: @getClass().name
       x: @x
       y: @y
+      rotation: @rotation
     }
 
 class Paddle extends GameObject
   @name: "Wooden Paddle"
   @image: "paddle.png"
+  constructor: (@x, @y, @levelModel, loaded) ->
+    super(@x, @y, @levelModel, loaded)
+    @weightedOriginX = 0.5
+    @weightedOriginY = 1.0
 
 class GravityBall extends GameObject
   @name: "Gravity Ball"
