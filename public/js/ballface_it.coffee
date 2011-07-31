@@ -461,5 +461,5 @@ $(document).ready ->
     }
 
   $(document).bind 'keydown', (e) ->
-    if levelModel.selectedObject != null && e.keyCode == 46 #Delete
+    if levelModel.selectedObject != null && e.keyCode == 46 && confirm("Are you sure you want to delete the #{levelModel.selectedObject.getClass().name}?") #Delete
       levelModel.deleteGameObject levelModel.selectedObject
