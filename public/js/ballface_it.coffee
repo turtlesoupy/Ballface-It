@@ -76,6 +76,8 @@ class LevelCanvas extends Base
         relativeLeft = ui.offset.left - dPos.left
         klass = @levelModel.gameObjectClassByName[ui.draggable.data("gameObjectClass")]
         gameObject = new klass(relativeLeft, relativeTop, @levelModel, (obj) =>
+          obj.x = obj.x + obj.width * obj.weightedOriginX
+          obj.y = obj.y + obj.height* obj.weightedOriginY
           @levelModel.addGameObject gameObject)
     }
 
@@ -237,7 +239,7 @@ class GameObject extends Base
   @counter = 0
 
   @deserializeNew: (data, levelModel, loaded) =>
-    ret = new this(data.x, data.y, levelModel, loaded)
+    ret = new this(data.x, levelModel.height - data.y, levelModel, loaded)
     ret.rotation = data.rotation || 0
     ret
 
@@ -258,24 +260,22 @@ class GameObject extends Base
   draw: (canvas) ->
     context = canvas.getContext "2d"
     context.save()
-    [transX, transY] = @originPoint()
-    context.translate(transX, transY)
+    context.translate(@x, @y)
     context.rotate(@rotation * Math.PI / 180)
-    context.translate(-transX, -transY)
+    context.translate(-@x, -@y)
+    x = @x - @weightedOriginX * @width
+    y = @y - @weightedOriginY * @height
+
     extra = 2
     if @selected
       context.fillStyle = "#00f"
-      context.fillRect @x - extra,@y - extra,@width + 2*extra,@height + 2*extra
-    context.drawImage @imageObject, @x, @y, @width, @height
+      context.fillRect x - extra,y - extra,@width + 2*extra,@height + 2*extra
+    context.drawImage @imageObject, x, y, @width, @height
     context.restore()
 
-  originPoint: ->
-    [@x + @weightedOriginX * @width, @y + @weightedOriginY * @height]
-
   convertToLocalSpace: (x,y) ->
-    [originX, originY] = @originPoint()
-    xp = x - originX
-    yp = y - originY
+    xp = x - @x
+    yp = y - @y
     st = Math.sin(@rotation * Math.PI / 180)
     ct = Math.cos(@rotation * Math.PI / 180)
     xr = ct * xp + st * yp
@@ -300,16 +300,17 @@ class GameObject extends Base
 
   hitTest: (x,y) ->
     [localX, localY] =  @convertToLocalSpace(x,y)
-    [originX, originY] = @originPoint()
-    newX = localX + originX
-    newY = localY + originY
-    newX >= @x && newX <= @x + @width && newY >= @y && newY <= @y + @height
+    newX = localX + @x
+    newY = localY + @y
+    drawX = @x - @weightedOriginX * @width
+    drawY = @y - @weightedOriginY * @height
+    newX >= drawX && newX <= drawX + @width && newY >= drawY && newY <= drawY + @height
 
   serialized: ->
     {
       type: @getClass().name
       x: @x
-      y: @y
+      y: @levelModel.height - @y
       rotation: @rotation
     }
 
@@ -352,6 +353,7 @@ class LevelModel extends Base
     @selectedObject = null
     @modelChangeCallbacks = []
     @width = 960
+    @height = 320
     @levelName = "Unnamed level"
     @gameObjectClasses = [Paddle, GravityBall, Fish, SmallPlank, MediumPlank, BigPlank]
     @gameObjectClassByName = ([c.name,c] for c in @gameObjectClasses).dict()
@@ -426,7 +428,7 @@ class LevelModel extends Base
     @gameObjects = []
     @gameObjectsById = {}
     for e in object.objects
-      @gameObjectClassByName[e.type].deserializeNew e, @levelModel, (gameObject) =>
+      @gameObjectClassByName[e.type].deserializeNew e, this, (gameObject) =>
         @addGameObject(gameObject)
         @modelChanged()
 
