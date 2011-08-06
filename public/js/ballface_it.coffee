@@ -330,6 +330,10 @@ class Fish extends GameObject
   @name: "Fish"
   @image: "fishEnemy.png"
 
+class Toothbrush extends GameObject
+  @name = "Toothbrush"
+  @image = "toothbrush.png"
+
 class BigPlank extends GameObject
   @name: "BigPlank"
   @image: "Planks-4x1.png"
@@ -341,6 +345,22 @@ class MediumPlank extends GameObject
 class SmallPlank extends GameObject
   @name: "SmallPlank"
   @image: "Planks-2x1.png"
+
+class StopSign extends GameObject
+  @name = "Stop"
+  @image = "stop.png"
+
+class OneWaySign extends GameObject
+  @name = "One Way"
+  @image = "oneway.png"
+
+class YieldSign extends GameObject
+  @name = "Yield"
+  @image = "yield.png"
+
+class Lunch extends GameObject
+  @name = "Lunch Bag"
+  @image = "lunch.png"
 
 #
 # -The- level
@@ -355,7 +375,7 @@ class LevelModel extends Base
     @width = 960
     @height = 320
     @levelName = "Unnamed level"
-    @gameObjectClasses = [Paddle, GravityBall, Fish, SmallPlank, MediumPlank, BigPlank]
+    @gameObjectClasses = [Paddle, Fish, Toothbrush, Lunch,  GravityBall, SmallPlank, MediumPlank, BigPlank, StopSign, OneWaySign, YieldSign]
     @gameObjectClassByName = ([c.name,c] for c in @gameObjectClasses).dict()
 
   hitTest: (x,y) ->
