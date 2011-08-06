@@ -334,8 +334,8 @@ class Toothbrush extends GameObject
   @name = "Toothbrush"
   @image = "toothbrush.png"
 
-class BigPlank extends GameObject
-  @name: "BigPlank"
+class LargePlank extends GameObject
+  @name: "LargePlank"
   @image: "Planks-4x1.png"
 
 class MediumPlank extends GameObject
@@ -375,7 +375,7 @@ class LevelModel extends Base
     @width = 960
     @height = 320
     @levelName = "Unnamed level"
-    @gameObjectClasses = [Paddle, Fish, Toothbrush, Lunch,  GravityBall, SmallPlank, MediumPlank, BigPlank, StopSign, OneWaySign, YieldSign]
+    @gameObjectClasses = [Paddle, Fish, Toothbrush, Lunch,  GravityBall, SmallPlank, MediumPlank, LargePlank, StopSign, OneWaySign, YieldSign]
     @gameObjectClassByName = ([c.name,c] for c in @gameObjectClasses).dict()
 
   hitTest: (x,y) ->
