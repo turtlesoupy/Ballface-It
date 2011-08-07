@@ -47,6 +47,16 @@ class StringProperty extends Base
     """).bind 'change', (e) =>
       @set e.target.value
       $(e.target).val @get()
+
+class BooleanProperty extends Base
+  constructor:((@name, @get, @set) -> )
+  newPropertyListNode: ->
+    $("""
+      <label for="#{@name}" class="name">#{@name}</label> 
+      <input type='checkbox' name="#{@name}" class="value" value="#{@name}" #{if @get() then 'checked' else ''} />
+    """).bind 'change', (e) =>
+      @set e.target.checked
+      e.target.checked = @get()
 #
 # Widgets
 # 
@@ -240,7 +250,7 @@ class GameObject extends Base
 
   @deserializeNew: (data, levelModel, loaded) =>
     ret = new this(data.x, levelModel.height - data.y, levelModel, loaded)
-    ret.rotation = data.rotation || 0
+    ret.initFromData(data)
     ret
 
   constructor: (@x, @y, @levelModel, loaded) ->
@@ -256,6 +266,9 @@ class GameObject extends Base
     @selected = false
     @weightedOriginX = 0.5
     @weightedOriginY = 0.5
+
+  initFromData: (data) ->
+    @rotation = data.rotation || 0
 
   draw: (canvas) ->
     context = canvas.getContext "2d"
@@ -334,33 +347,56 @@ class Toothbrush extends GameObject
   @name = "Toothbrush"
   @image = "toothbrush.png"
 
-class LargePlank extends GameObject
-  @name: "LargePlank"
-  @image: "Planks-4x1.png"
+class Debris extends GameObject
+  constructor: (@x, @y, @levelModel, loaded) ->
+    super(@x, @y, @levelModel, loaded)
+    @staticBody = true
 
-class MediumPlank extends GameObject
-  @name: "MediumPlank"
-  @image: "Planks-3x1.png"
+  initFromData: (data) ->
+    super(data)
+    @staticBody = data.staticBody || true
 
-class SmallPlank extends GameObject
-  @name: "SmallPlank"
-  @image: "Planks-2x1.png"
+  gameProperties: ->
+    @_gameProperties or= super().concat([
+      new BooleanProperty("staticBody", (=> @staticBody), ((v) =>
+        @staticBody = v
+        @levelModel.modelChanged()
+      ))
+    ])
 
-class StopSign extends GameObject
-  @name = "Stop"
-  @image = "stop.png"
+  serialized: ->
+    $.extend super(), {
+      staticBody: @staticBody
+    }
 
-class OneWaySign extends GameObject
-  @name = "One Way"
-  @image = "oneway.png"
-
-class YieldSign extends GameObject
-  @name = "Yield"
-  @image = "yield.png"
 
 class Lunch extends GameObject
   @name = "Lunch Bag"
   @image = "lunch.png"
+
+class LargePlank extends Debris
+  @name: "LargePlank"
+  @image: "Planks-4x1.png"
+
+class MediumPlank extends Debris
+  @name: "MediumPlank"
+  @image: "Planks-3x1.png"
+
+class SmallPlank extends Debris
+  @name: "SmallPlank"
+  @image: "Planks-2x1.png"
+
+class StopSign extends Debris
+  @name = "Stop"
+  @image = "stop.png"
+
+class OneWaySign extends Debris
+  @name = "One Way"
+  @image = "oneway.png"
+
+class YieldSign extends Debris
+  @name = "Yield"
+  @image = "yield.png"
 
 #
 # -The- level
