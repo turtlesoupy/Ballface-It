@@ -254,7 +254,6 @@ class GameObject extends Base
     ret
 
   constructor: (@x, @y, @levelModel, loaded) ->
-    @rotation = 0
     @imageObject = new Image()
     @imageObject.onload = =>
       @width = @imageObject.width
@@ -266,9 +265,16 @@ class GameObject extends Base
     @selected = false
     @weightedOriginX = 0.5
     @weightedOriginY = 0.5
+    @rotation = 0
+    @restitution = 0.5
+    @density = 100.0
+    @friction = 0.1
 
   initFromData: (data) ->
-    @rotation = data.rotation || 0
+    @rotation = data.rotation if data.rotation
+    @restitution = data.restitution if data.restitution
+    @friction = data.friction if data.friction
+    @density = data.density if data.density
 
   draw: (canvas) ->
     context = canvas.getContext "2d"
@@ -308,7 +314,10 @@ class GameObject extends Base
       new FloatProperty("rotation", (=> @rotation), ((v) =>
         @rotation = v
         @levelModel.modelChanged()
-      ))
+      )),
+      new FloatProperty("density", (=> @density), ((v) => @density = v)),
+      new FloatProperty("friction", (=> @friction), ((v) => @friction = v)),
+      new FloatProperty("restitution", (=> @restitution), ((v) => @restitution = v))
     ]
 
   hitTest: (x,y) ->
@@ -325,6 +334,36 @@ class GameObject extends Base
       x: @x
       y: @levelModel.height - @y
       rotation: @rotation
+      density: @density
+      friction: @friction
+      restitution: @restitution
+    }
+
+class GameEntity extends GameObject
+class SpawnPoint extends GameEntity
+  @image = "ballface.png"
+  @name = "Ballface Spawn"
+
+  constructor: (@x, @y, @levelModel, loaded) ->
+    super(@x, @y, @levelModel, loaded)
+    @normalizationForce = 200.0
+    @maxVelocity = 100.0
+
+  initFromData: (data) ->
+    super(data)
+    @normalizationForce = data.normalizationForce if data.normalizationForce
+    @maxVelocity = data.maxVelocity if data.maxVelocity
+
+  gameProperties: ->
+    @_gameProperties or=  [
+      new FloatProperty("normalizationForce", (=> @normalizationForce), ((v) => @normalizationForce =  v)),
+      new FloatProperty("maxVelocity", (=> @maxVelocity), ((v) => @maxVelocity =  v))
+    ]
+
+  serialized: ->
+    $.extend super(), {
+      normalizationForce: @normalizationForce
+      maxVelocity: @maxVelocity
     }
 
 class Paddle extends GameObject
@@ -354,7 +393,7 @@ class Debris extends GameObject
 
   initFromData: (data) ->
     super(data)
-    @staticBody = data.staticBody || true
+    @staticBody = data.staticBody if data.staticBody
 
   gameProperties: ->
     @_gameProperties or= super().concat([
@@ -410,8 +449,14 @@ class LevelModel extends Base
     @modelChangeCallbacks = []
     @width = 960
     @height = 320
+    @paddleSpinFactor = 750.0
+    @paddleMaxSpin = 100.0
+    @paddleAngularDamping = 2
+    @paddleDensity = 300.0
+    @paddleFriction = 5.0
+    @paddleRestitution = 0.5
     @levelName = "Unnamed level"
-    @gameObjectClasses = [Paddle, Fish, Toothbrush, Lunch,  GravityBall, SmallPlank, MediumPlank, LargePlank, StopSign, OneWaySign, YieldSign]
+    @gameObjectClasses = [SpawnPoint, Paddle, Fish, Toothbrush, Lunch,  GravityBall, SmallPlank, MediumPlank, LargePlank, StopSign, OneWaySign, YieldSign]
     @gameObjectClassByName = ([c.name,c] for c in @gameObjectClasses).dict()
 
   hitTest: (x,y) ->
@@ -459,14 +504,19 @@ class LevelModel extends Base
       @unselectAll()
     @modelChanged()
 
-
   gameProperties: ->
     @_gameProperties or= [
       new StringProperty("levelName", (=> @levelName), (val) => @levelName = val),
       new IntegerProperty("width", (=> @width), ((val) =>
         @width = val
         @modelChanged()
-      ))
+      )),
+      new FloatProperty("paddleSpinFactor", (=> @paddleSpinFactor), (v) => @paddleSpinFactor = v),
+      new FloatProperty("paddleMaxSpin", (=> @paddleMaxSpin), (v) => @paddleMaxSpin = v),
+      new FloatProperty("paddleAngularDamping", (=> @paddleAngularDamping), (v) => @paddleAngularDamping = v),
+      new FloatProperty("paddleDensity", (=> @paddleDensity), (v) => @paddleDensity = v),
+      new FloatProperty("paddleRestitution", (=> @paddleRestitution), (v) => @paddleRestitution = v),
+      new FloatProperty("paddleFriction", (=> @paddleFriction), (v) => @paddleFriction = v)
     ]
 
   serialized: ->
@@ -475,12 +525,23 @@ class LevelModel extends Base
       objects: e.serialized() for e in @gameObjects
       width: @width
       editorVersion: VERSION
+      paddleSpinFactor: @paddleSpinFactor
+      paddleMaxSpin: @paddleMaxSpin
+      paddleDensity: @paddleDensity
+      paddleRestitution: @paddleRestitution
+      paddleFriction: @paddleFriction
     }
 
   deserialize: (object) ->
     @selectedObject = null
     @levelName = object.levelName
     @width = object.width
+    @paddleSpinFactor = object.paddleSpinFactor if object.paddleSpinFactor?
+    @paddleMaxSpin = object.paddleMaxSpin if object.paddleMaxSpin?
+    @paddleAngularDamping = object.paddleAngularDamping if object.paddleAngularDamping?
+    @paddleDensity = object.paddleDensity if object.paddleDensity?
+    @paddleRestitution = object.paddleRestitution if object.paddleRestitution?
+    @paddleFriction = object.paddleFriction if object.paddleFriction?
     @gameObjects = []
     @gameObjectsById = {}
     for e in object.objects
