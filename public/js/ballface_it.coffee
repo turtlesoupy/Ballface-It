@@ -450,7 +450,7 @@ class LevelModel extends Base
     @width = 960
     @height = 320
     @paddleSpinFactor = 750.0
-    @paddleMaxSpin = 100.0
+    @paddleMaxSpin = 5000.0
     @paddleAngularDamping = 2
     @paddleDensity = 300.0
     @paddleFriction = 5.0
