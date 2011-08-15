@@ -355,10 +355,10 @@ class SpawnPoint extends GameEntity
     @maxVelocity = data.maxVelocity if data.maxVelocity
 
   gameProperties: ->
-    @_gameProperties or=  [
+    @_gameProperties or= super().concat([
       new FloatProperty("normalizationForce", (=> @normalizationForce), ((v) => @normalizationForce =  v)),
       new FloatProperty("maxVelocity", (=> @maxVelocity), ((v) => @maxVelocity =  v))
-    ]
+    ])
 
   serialized: ->
     $.extend super(), {
