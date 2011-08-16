@@ -63,6 +63,9 @@ scanLevels = (callback) ->
         delete level["level"]
 
       glb.levels = levels
+      for e in glb.levels
+        e.saveTime = new Date(e.saveTime)
+      glb.levels.sort (a,b) -> b.saveTime.getTime() - a.saveTime.getTime()
       glb.levelIdToLevel = ([e.id,e] for e in levels).dict()
       glb.levelIds = if levels.length == 0 then 0 else Math.max((e.id for e in levels)...) + 1
       callback(null, levels)
@@ -74,15 +77,19 @@ app.post '/save', (req, res) ->
   level = req.body.level
   console.log "Got a save request!"
   console.log level
+  console.log "Request body id is #{req.body.id}"
+  id = req.body.id ? glb.levelIds
+
   filename = escapeFilename("#{req.body.level.levelName}-#{glb.levelIds}.json")
   level = {
-    id: glb.levelIds
+    id: id
     filename: filename
     saveTime: new Date()
     name: req.body.level.levelName
     level: req.body.level
   }
   glb.levelIds += 1
+
 
   res.contentType('json')
   writeLevel level, (err) ->
@@ -91,13 +98,22 @@ app.post '/save', (req, res) ->
       res.send JSON.stringify({ok: false})
       return
 
-    scanLevels (err, levels) ->
-      if err
-        console.log "Error saving level: #{err}"
-        res.send JSON.stringify({ok: false})
-        return
 
-      res.send JSON.stringify({ok: true})
+    scanAndReturn = ->
+      scanLevels (err, levels) ->
+        if err
+          console.log "Error saving level: #{err}"
+          res.send JSON.stringify({ok: false})
+          return
+
+        res.send JSON.stringify({id: id})
+
+    oldLevel = glb.levelIdToLevel[req.body.id]
+    if oldLevel? && oldLevel.filename != level.filename
+      deleteLevel oldLevel, (err) ->
+        scanAndReturn()
+    else
+      scanAndReturn()
 
 app.get '/list', (req, res) ->
   res.contentType('json')

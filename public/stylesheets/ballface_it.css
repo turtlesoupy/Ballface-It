@@ -54,6 +54,22 @@ h2 {
   overflow-y: hidden;
 }
 
+#loadingDiv {
+  text-align: center;
+}
+
+#loadingDiv .textWrapper {
+  margin-top: 50px;
+}
+
+.loadingDivDialog .ui-dialog-titlebar {
+  display: none;
+}
+
+#saveLevel {
+  margin-top: 20px;
+}
+
 #editorCanvas {
   background: white;
 }
@@ -64,9 +80,18 @@ h2 {
   margin: 0 auto;
 }
 
+#saveLevelWrapper {
+  text-align: center;
+}
+
 #objectTabs {
   width: 720px;
-  margin: 30px auto;
+  margin: 20px auto;
+}
+
+#saveLevelSubmit {
+  width: 200px;
+  height: 30px;
 }
 
 #gameObjectsWrapper {

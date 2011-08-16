@@ -230,6 +230,7 @@ class SavedLister extends Base
         $.get e.target.href, (data) =>
           if data.level
             @levelModel.deserialize data.level
+            @levelModel.id = data.id
 
     @$node.find(".deleteLevel").click (e) =>
       e.preventDefault()
@@ -558,6 +559,23 @@ $(document).ready ->
   gameObjectSelector = new GameObjectSelector $("#gameObjects").get(0), levelModel
   savedLister = new SavedLister $("#levelSaves").get(0), levelModel
 
+  $("#loadingDiv").dialog
+    modal: true
+    dialogClass: 'loadingDivDialog'
+    draggable: false
+    resizable: false
+    autoOpen: false
+    show: 'fade'
+    hide: 'explode'
+
+  startLoading = ->
+    $("loadingDivSpinner").show()
+    $("#loadingDiv").dialog 'open'
+  stopLoading = ->
+    setTimeout(->
+      $("#loadingDiv").dialog 'close'
+    , 200)
+
   $("#objectTabs").tabs().bind 'tabsselect', (e, ui) ->
     if ui.index == SAVES_INDEX
       savedLister.repopulate()
@@ -565,20 +583,33 @@ $(document).ready ->
   $("#saveLevel").submit (e) ->
     e.preventDefault()
     $("#saveLevelSubmit").attr 'disabled', true
+    data = {level: levelModel.serialized()}
+    data.id = levelModel.id if levelModel.id?
+    startLoading()
     $.ajax {
       type: "POST"
       url: "/save"
-      data: JSON.stringify({level: levelModel.serialized()})
+      data: JSON.stringify(data)
       dataType: "json"
       contentType: "application/json"
-      success: ->
-        $("#saveLevelSubmit").attr 'disabled', false
+      success: (data) ->
+        levelModel.id = data.id
         savedLister.repopulate()
+        stopLoading()
       error: ->
+        stopLoading()
         $("#saveLevelSubmit").attr 'disabled', false
         alert 'Failed to save!'
     }
 
+  levelModel.addModelChangeCallback ->
+    $("#saveLevelSubmit").attr 'disabled', false
+
+
   $(document).bind 'keydown', (e) ->
     if levelModel.selectedObject != null && e.keyCode == 46 && confirm("Are you sure you want to delete the #{levelModel.selectedObject.getClass().name}?") #Delete
+      e.preventDefault()
       levelModel.deleteGameObject levelModel.selectedObject
+    else if e.ctrlKey && (e.keyCode == 83 || e.keyCode == 115) || e.keyCode == 19 #Control S
+      e.preventDefault()
+      $("#saveLevel").submit() unless $("#saveLevelSubmit").attr('disabled')

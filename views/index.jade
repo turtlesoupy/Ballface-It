@@ -22,6 +22,17 @@ html(lang="en")
           .editorCanvasWrapper
             canvas#editorCanvas(height="320", width="960") Your browser doesn't support canvas
 
+      div#loadingDiv
+        .textWrapper
+          #loadingDivSpinner
+            img(src="/images/pacman_loader.gif")
+          br
+          |Loading...
+
+      #saveLevelWrapper
+        form#saveLevel
+          input#saveLevelSubmit(type="submit", value="Save", disabled="Disabled")
+
       #objectTabs
         ul
           li: a(href="#tabs-1") Object Palette
@@ -47,8 +58,6 @@ html(lang="en")
         #tabs-5
           #saveWrapper
             #levelSaves
-            form#saveLevel(action="/save", method="POST")
-              input#saveLevelSubmit(type="submit", value="Save Current Level")
           br.clear
 
         
