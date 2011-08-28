@@ -1,6 +1,5 @@
 VERSION = 0.1
 SAVES_INDEX = 4
-
 #
 # Convinience 
 #
@@ -12,9 +11,20 @@ Array.prototype.dict = ->
 
 #Not placing on the object prototype due to serialization concerns
 class Base
-  constructor:((@name, @get, @set) -> )
+  constructor: ((@name, @get, @set) -> )
   getClass: ->
     @constructor
+
+  setProperty: (name, klass, opts...) =>
+    new klass(name, (=> this[name]), (val) =>
+      this[name] = val
+    , opts...)
+
+  setAndNotifyProperty: (name, klass, opts...) =>
+    new klass(name, (=> this[name]), (val) =>
+      this[name] = val
+      @levelModel.modelChanged()
+    , opts...)
 
 #
 # Properties
@@ -56,7 +66,7 @@ class BooleanProperty extends Base
       e.target.checked = @get()
 
 class EnumProperty extends Base
-  constructor:((@name, @get, @set, @options) -> )
+  constructor: ((@name, @get, @set, @options) -> )
   newPropertyListNode: ->
     selectStrings = ("<option value='#{e}'#{if @get() == e then 'selected' else ''}>#{e}</option>" for e in @options).join("\n")
     $("""
@@ -249,7 +259,6 @@ class SavedLister extends Base
 #
 # Game objects
 # 
-
 class GameObject extends Base
   @name: "Unknown"
   @image: "unknown.png"
@@ -259,7 +268,8 @@ class GameObject extends Base
 
   @deserializeNew: (data, levelModel, loaded) =>
     ret = new this(data.x, levelModel.height - data.y, levelModel, loaded)
-    ret.initFromData(data)
+    for property in ret.gameProperties()
+      property.set(data[property.name]) if data[property.name]?
     ret
 
   constructor: (@x, @y, @levelModel, loaded) ->
@@ -279,12 +289,6 @@ class GameObject extends Base
     @density = 100.0
     @friction = 0.1
 
-  initFromData: (data) ->
-    @rotation = data.rotation if data.rotation
-    @restitution = data.restitution if data.restitution
-    @friction = data.friction if data.friction
-    @density = data.density if data.density
-
   draw: (canvas) ->
     context = canvas.getContext "2d"
     context.save()
@@ -293,7 +297,6 @@ class GameObject extends Base
     context.translate(-@x, -@y)
     x = @x - @weightedOriginX * @width
     y = @y - @weightedOriginY * @height
-
     extra = 2
     if @selected
       context.fillStyle = "#00f"
@@ -311,23 +314,14 @@ class GameObject extends Base
     [xr, yr]
   
   gameProperties: ->
-    @_gameProperties or= [
-      new IntegerProperty("x", (=> @x), ((v) =>
-        @x = v
-        @levelModel.modelChanged()
-      )),
-      new IntegerProperty("y", (=> @y), ((v) =>
-        @y = v
-        @levelModel.modelChanged()
-      )),
-      new FloatProperty("rotation", (=> @rotation), ((v) =>
-        @rotation = v
-        @levelModel.modelChanged()
-      )),
-      new FloatProperty("density", (=> @density), ((v) => @density = v)),
-      new FloatProperty("friction", (=> @friction), ((v) => @friction = v)),
-      new FloatProperty("restitution", (=> @restitution), ((v) => @restitution = v))
-    ]
+    @_gameProperties or= (@setAndNotifyProperty(e...) for e in [
+        ["x", IntegerProperty],
+        ["y", IntegerProperty],
+        ["rotation", FloatProperty],
+        ["density", FloatProperty],
+        ["friction", FloatProperty],
+        ["restitution", FloatProperty]
+      ])
 
   hitTest: (x,y) ->
     [localX, localY] =  @convertToLocalSpace(x,y)
@@ -338,15 +332,14 @@ class GameObject extends Base
     newX >= drawX && newX <= drawX + @width && newY >= drawY && newY <= drawY + @height
 
   serialized: ->
-    {
+    ret = {
       type: @getClass().name
-      x: @x
-      y: @levelModel.height - @y
-      rotation: @rotation
-      density: @density
-      friction: @friction
-      restitution: @restitution
     }
+    for property in @gameProperties()
+      ret[property.name] = property.get()
+    #hack to flip y to match opengl
+    ret.y = @levelModel.height - ret.y
+    ret
 
 class GameEntity extends GameObject
 class SpawnPoint extends GameEntity
@@ -358,22 +351,11 @@ class SpawnPoint extends GameEntity
     @normalizationForce = 200.0
     @maxVelocity = 100.0
 
-  initFromData: (data) ->
-    super(data)
-    @normalizationForce = data.normalizationForce if data.normalizationForce
-    @maxVelocity = data.maxVelocity if data.maxVelocity
-
   gameProperties: ->
-    @_gameProperties or= super().concat([
-      new FloatProperty("normalizationForce", (=> @normalizationForce), ((v) => @normalizationForce =  v)),
-      new FloatProperty("maxVelocity", (=> @maxVelocity), ((v) => @maxVelocity =  v))
+    @_gameProperties or= super().concat(@setAndNotifyProperty(e...) for e in [
+      ["normalizationForce", FloatProperty],
+      ["maxVelocity", FloatProperty]
     ])
-
-  serialized: ->
-    $.extend super(), {
-      normalizationForce: @normalizationForce
-      maxVelocity: @maxVelocity
-    }
 
 class Paddle extends GameObject
   @name: "Wooden Paddle"
@@ -400,23 +382,10 @@ class Debris extends GameObject
     super(@x, @y, @levelModel, loaded)
     @staticBody = true
 
-  initFromData: (data) ->
-    super(data)
-    @staticBody = data.staticBody if data.staticBody
-
   gameProperties: ->
-    @_gameProperties or= super().concat([
-      new BooleanProperty("staticBody", (=> @staticBody), ((v) =>
-        @staticBody = v
-        @levelModel.modelChanged()
-      ))
+    @_gameProperties or= super().concat(@setAndNotifyProperty(e...) for e in [
+      ["staticBody", BooleanProperty]
     ])
-
-  serialized: ->
-    $.extend super(), {
-      staticBody: @staticBody
-    }
-
 
 class Lunch extends GameObject
   @name = "Lunch Bag"
@@ -449,7 +418,6 @@ class YieldSign extends Debris
 #
 # -The- level
 #
-
 class LevelModel extends Base
   constructor: ->
     @gameObjects = []
@@ -468,6 +436,7 @@ class LevelModel extends Base
     @controlType = "Paddle"
     @gameObjectClasses = [SpawnPoint, Paddle, Fish, Toothbrush, Lunch,  GravityBall, SmallPlank, MediumPlank, LargePlank, StopSign, OneWaySign, YieldSign]
     @gameObjectClassByName = ([c.name,c] for c in @gameObjectClasses).dict()
+    @levelModel = this #For property helper methods
 
   hitTest: (x,y) ->
     for gameObject in @gameObjects
@@ -502,7 +471,7 @@ class LevelModel extends Base
     @gameObjects.sort (a,b) -> a.x - b.x
     @modelChanged()
 
-  addGameObject:(gameObject) ->
+  addGameObject: (gameObject) ->
     @gameObjects.push(gameObject)
     @gameObjectsById[gameObject.id] = gameObject
     @reorder()
@@ -516,47 +485,32 @@ class LevelModel extends Base
 
   gameProperties: ->
     @_gameProperties or= [
-      new StringProperty("levelName", (=> @levelName), (val) => @levelName = val),
-      new IntegerProperty("width", (=> @width), ((val) =>
-        @width = val
-        @modelChanged()
-      )),
-      new FloatProperty("paddleSpinFactor", (=> @paddleSpinFactor), (v) => @paddleSpinFactor = v),
-      new FloatProperty("paddleMaxSpin", (=> @paddleMaxSpin), (v) => @paddleMaxSpin = v),
-      new FloatProperty("paddleAngularDamping", (=> @paddleAngularDamping), (v) => @paddleAngularDamping = v),
-      new FloatProperty("paddleDensity", (=> @paddleDensity), (v) => @paddleDensity = v),
-      new FloatProperty("paddleRestitution", (=> @paddleRestitution), (v) => @paddleRestitution = v),
-      new FloatProperty("paddleFriction", (=> @paddleFriction), (v) => @paddleFriction = v),
-      new EnumProperty("controlType", (=> @controlType), ((v) => @controlType = v), ["Paddle", "Explosion"])
+      @setProperty("levelName", StringProperty),
+      @setAndNotifyProperty("width", IntegerProperty),
+      @setProperty("paddleSpinFactor", FloatProperty),
+      @setProperty("paddleMaxSpin", FloatProperty),
+      @setProperty("paddleAngularDamping", FloatProperty),
+      @setProperty("paddleDensity", FloatProperty),
+      @setProperty("paddleRestitution", FloatProperty),
+      @setProperty("paddleFriction", FloatProperty),
+      @setProperty("controlType", EnumProperty, ["Paddle", "Explosion"])
     ]
 
   serialized: ->
-    {
-      levelName: @levelName
+    ret = {
       objects: e.serialized() for e in @gameObjects
-      width: @width
       editorVersion: VERSION
-      paddleSpinFactor: @paddleSpinFactor
-      paddleMaxSpin: @paddleMaxSpin
-      paddleDensity: @paddleDensity
-      paddleRestitution: @paddleRestitution
-      paddleFriction: @paddleFriction
-      controlType: @controlType
     }
+    for property in @gameProperties()
+      ret[property.name] = property.get()
+    ret
 
   deserialize: (object) ->
     @selectedObject = null
-    @levelName = object.levelName
-    @width = object.width
-    @paddleSpinFactor = object.paddleSpinFactor if object.paddleSpinFactor?
-    @paddleMaxSpin = object.paddleMaxSpin if object.paddleMaxSpin?
-    @paddleAngularDamping = object.paddleAngularDamping if object.paddleAngularDamping?
-    @paddleDensity = object.paddleDensity if object.paddleDensity?
-    @paddleRestitution = object.paddleRestitution if object.paddleRestitution?
-    @paddleFriction = object.paddleFriction if object.paddleFriction?
-    @controlType = object.controlType if object.controlType?
     @gameObjects = []
     @gameObjectsById = {}
+    for property in @gameProperties()
+      property.set(object[property.name]) if object[property.name]?
     for e in object.objects
       @gameObjectClassByName[e.type].deserializeNew e, this, (gameObject) =>
         @addGameObject(gameObject)
@@ -616,7 +570,6 @@ $(document).ready ->
 
   levelModel.addModelChangeCallback ->
     $("#saveLevelSubmit").attr 'disabled', false
-
 
   $(document).bind 'keydown', (e) ->
     if levelModel.selectedObject != null && e.keyCode == 46 && confirm("Are you sure you want to delete the #{levelModel.selectedObject.getClass().name}?") #Delete
