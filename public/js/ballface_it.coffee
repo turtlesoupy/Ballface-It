@@ -12,6 +12,7 @@ Array.prototype.dict = ->
 
 #Not placing on the object prototype due to serialization concerns
 class Base
+  constructor:((@name, @get, @set) -> )
   getClass: ->
     @constructor
 
@@ -19,7 +20,6 @@ class Base
 # Properties
 #
 class IntegerProperty extends Base
-  constructor:((@name, @get, @set) -> )
   newPropertyListNode: ->
     $("""
     <label for="#{@name}" class="name">#{@name}</label> 
@@ -29,7 +29,6 @@ class IntegerProperty extends Base
       $(e.target).val @get()
 
 class FloatProperty extends Base
-  constructor:((@name, @get, @set) -> )
   newPropertyListNode: ->
     $("""
     <label for="#{@name}" class="name">#{@name}</label> 
@@ -39,7 +38,6 @@ class FloatProperty extends Base
       $(e.target).val @get()
 
 class StringProperty extends Base
-  constructor:((@name, @get, @set) -> )
   newPropertyListNode: ->
     $("""
     <label for="#{@name}" class="name">#{@name}</label> 
@@ -49,7 +47,6 @@ class StringProperty extends Base
       $(e.target).val @get()
 
 class BooleanProperty extends Base
-  constructor:((@name, @get, @set) -> )
   newPropertyListNode: ->
     $("""
       <label for="#{@name}" class="name">#{@name}</label> 
@@ -57,6 +54,17 @@ class BooleanProperty extends Base
     """).bind 'change', (e) =>
       @set e.target.checked
       e.target.checked = @get()
+
+class EnumProperty extends Base
+  constructor:((@name, @get, @set, @options) -> )
+  newPropertyListNode: ->
+    selectStrings = ("<option value='#{e}'#{if @get() == e then 'selected' else ''}>#{e}</option>" for e in @options).join("\n")
+    $("""
+      <label for="#{@name}" class="name">#{@name}</label> 
+      <select name="#{name}">#{selectStrings}</select>
+    """).bind 'change', (e) =>
+      @set $(e.target).val()
+      $(e.target).val @get()
 #
 # Widgets
 # 
@@ -457,6 +465,7 @@ class LevelModel extends Base
     @paddleFriction = 5.0
     @paddleRestitution = 0.5
     @levelName = "Unnamed level"
+    @controlType = "Paddle"
     @gameObjectClasses = [SpawnPoint, Paddle, Fish, Toothbrush, Lunch,  GravityBall, SmallPlank, MediumPlank, LargePlank, StopSign, OneWaySign, YieldSign]
     @gameObjectClassByName = ([c.name,c] for c in @gameObjectClasses).dict()
 
@@ -517,7 +526,8 @@ class LevelModel extends Base
       new FloatProperty("paddleAngularDamping", (=> @paddleAngularDamping), (v) => @paddleAngularDamping = v),
       new FloatProperty("paddleDensity", (=> @paddleDensity), (v) => @paddleDensity = v),
       new FloatProperty("paddleRestitution", (=> @paddleRestitution), (v) => @paddleRestitution = v),
-      new FloatProperty("paddleFriction", (=> @paddleFriction), (v) => @paddleFriction = v)
+      new FloatProperty("paddleFriction", (=> @paddleFriction), (v) => @paddleFriction = v),
+      new EnumProperty("controlType", (=> @controlType), ((v) => @controlType = v), ["Paddle", "Explosion"])
     ]
 
   serialized: ->
@@ -531,6 +541,7 @@ class LevelModel extends Base
       paddleDensity: @paddleDensity
       paddleRestitution: @paddleRestitution
       paddleFriction: @paddleFriction
+      controlType: @controlType
     }
 
   deserialize: (object) ->
@@ -543,6 +554,7 @@ class LevelModel extends Base
     @paddleDensity = object.paddleDensity if object.paddleDensity?
     @paddleRestitution = object.paddleRestitution if object.paddleRestitution?
     @paddleFriction = object.paddleFriction if object.paddleFriction?
+    @controlType = object.controlType if object.controlType?
     @gameObjects = []
     @gameObjectsById = {}
     for e in object.objects
