@@ -493,7 +493,7 @@ class LevelModel extends Base
       @setProperty("paddleDensity", FloatProperty),
       @setProperty("paddleRestitution", FloatProperty),
       @setProperty("paddleFriction", FloatProperty),
-      @setProperty("controlType", EnumProperty, ["Paddle", "Explosion"])
+      @setProperty("controlType", EnumProperty, ["Paddle", "Explosion", "Yoyo"])
     ]
 
   serialized: ->
