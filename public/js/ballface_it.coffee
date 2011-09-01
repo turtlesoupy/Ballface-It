@@ -390,6 +390,14 @@ class Debris extends GameObject
 class Lunch extends GameObject
   @name = "Lunch Bag"
   @image = "lunch.png"
+  constructor: (@x, @y, @levelModel, loaded) ->
+    super(@x, @y, @levelModel, loaded)
+    @foodVelocityRatio = 1.0
+
+  gameProperties: ->
+    @_gameProperties or= super().concat(@setAndNotifyProperty(e...) for e in [
+      ["foodVelocityRatio", FloatProperty],
+    ])
 
 class LargePlank extends Debris
   @name: "LargePlank"
@@ -426,8 +434,8 @@ class LevelModel extends Base
     @modelChangeCallbacks = []
     @width = 960
     @height = 320
-    @paddleSpinFactor = 750.0
-    @paddleMaxSpin = 5000.0
+    @paddleSpinFactor = 5000.0
+    @paddleMaxSpin = 15000.0
     @paddleAngularDamping = 2
     @paddleDensity = 300.0
     @paddleFriction = 5.0
