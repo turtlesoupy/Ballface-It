@@ -377,6 +377,10 @@ class Toothbrush extends GameObject
   @name = "Toothbrush"
   @image = "toothbrush.png"
 
+class Spring extends GameObject
+  @name = "Spring"
+  @image = "spring.png"
+
 class Debris extends GameObject
   constructor: (@x, @y, @levelModel, loaded) ->
     super(@x, @y, @levelModel, loaded)
@@ -423,6 +427,10 @@ class YieldSign extends Debris
   @name = "Yield"
   @image = "yield.png"
 
+class GuardRail extends Debris
+  @name = "GuardRail"
+  @image = "GuardRail.png"
+
 #
 # -The- level
 #
@@ -434,15 +442,13 @@ class LevelModel extends Base
     @modelChangeCallbacks = []
     @width = 960
     @height = 320
-    @paddleSpinFactor = 5000.0
-    @paddleMaxSpin = 15000.0
     @paddleAngularDamping = 2
     @paddleDensity = 300.0
     @paddleFriction = 5.0
     @paddleRestitution = 0.5
     @levelName = "Unnamed level"
     @controlType = "Paddle"
-    @gameObjectClasses = [SpawnPoint, Paddle, Fish, Toothbrush, Lunch,  GravityBall, SmallPlank, MediumPlank, LargePlank, StopSign, OneWaySign, YieldSign]
+    @gameObjectClasses = [SpawnPoint, Paddle, Fish, Toothbrush, Lunch,  GravityBall, SmallPlank, MediumPlank, LargePlank, Spring, StopSign, OneWaySign, YieldSign, GuardRail]
     @gameObjectClassByName = ([c.name,c] for c in @gameObjectClasses).dict()
     @levelModel = this #For property helper methods
 
@@ -495,8 +501,6 @@ class LevelModel extends Base
     @_gameProperties or= [
       @setProperty("levelName", StringProperty),
       @setAndNotifyProperty("width", IntegerProperty),
-      @setProperty("paddleSpinFactor", FloatProperty),
-      @setProperty("paddleMaxSpin", FloatProperty),
       @setProperty("paddleAngularDamping", FloatProperty),
       @setProperty("paddleDensity", FloatProperty),
       @setProperty("paddleRestitution", FloatProperty),
