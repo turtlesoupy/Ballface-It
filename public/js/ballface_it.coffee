@@ -5,9 +5,23 @@ SAVES_INDEX = 4
 #
 Array.prototype.dict = ->
   ret = {}
-  for e in this
-    ret[e[0]] = e[1]
+  ret[e[0]] = e[1] for e in this
   ret
+
+Array.prototype.groupBy = (f) ->
+  ret = {}
+  (ret[f(e)] or= []).push e for e in this
+  ret
+
+Array.prototype.last = -> if this.length == 0 then null else this[this.length - 1]
+Array.prototype.first = -> if this.length == 0 then null else this[0]
+Array.prototype.inGroupsOf = (num, fillNulls = false) ->
+  ret = []
+  (ret[Math.floor i / num] or= []).push this[i] for i in [0..this.length - 1]
+  ret.last().push(null) for i in [ret.last().length..num - 1] if fillNulls && ret.last().length != num
+  ret
+
+aa = (name) -> (e) -> e[name] #Attr accessor
 
 #Not placing on the object prototype due to serialization concerns
 class Base
@@ -204,16 +218,27 @@ class ObjectInspector extends Base
 
 class GameObjectSelector extends Base
   constructor: (@node, @levelModel) ->
-    html = for gameObjectClass in @levelModel.gameObjectClasses
-      """
-        <div class="gameObject">
-          <img src="#{gameObjectClass.relativeImage()}" class="gameObjectImage" data-game-object-class="#{gameObjectClass.name}"/>
-          <br />
-          <span class="gameObjectName">#{gameObjectClass.name}</span>
-        </div>
-      """
+    groups = @levelModel.gameObjectClasses.groupBy aa("groupName")
+    for groupName, gameObjectClasses of groups
+      html = "<div class='gameObjectGroup'><h2>#{groupName}</h2><table>"
+      for gameObjectGroup in gameObjectClasses.inGroupsOf(4, true)
+        html += "<tr>"
+        html += (for gameObjectClass in gameObjectGroup
+          if gameObjectClass == null
+            "<td></td>"
+          else
+            """
+              <td class="gameObject">
+                <img src="#{gameObjectClass.relativeImage()}" class="gameObjectImage" data-game-object-class="#{gameObjectClass.name}"/>
+                <br />
+                <span class="gameObjectName">#{gameObjectClass.name}</span>
+              </td>
+            """
+        ).join("")
+        html += "</tr>"
+      html += "</table></div>"
+      $(@node).append html
 
-    $(@node).append html.join("")
     $(".gameObjectImage" ).draggable {helper: 'clone'}
 
 class SavedLister extends Base
@@ -262,6 +287,7 @@ class SavedLister extends Base
 class GameObject extends Base
   @name: "Unknown"
   @image: "unknown.png"
+  @groupName: "Game Objects"
   @relativeImage: =>
     "data/game_objects/#{@image}"
   @counter = 0
@@ -342,6 +368,8 @@ class GameObject extends Base
     ret
 
 class GameEntity extends GameObject
+  @groupName = "Entities"
+
 class SpawnPoint extends GameEntity
   @image = "ballface.png"
   @name = "Ballface Spawn"
@@ -382,6 +410,7 @@ class Spring extends GameObject
   @image = "spring.png"
 
 class Debris extends GameObject
+  @groupName = "Debris"
   constructor: (@x, @y, @levelModel, loaded) ->
     super(@x, @y, @levelModel, loaded)
     @staticBody = true
@@ -431,6 +460,30 @@ class GuardRail extends Debris
   @name = "GuardRail"
   @image = "GuardRail.png"
 
+class Girders1 extends Debris
+  @name = "Girders1"
+  @image = "Girders1.png"
+
+class Girders2 extends Debris
+  @name = "Girders2"
+  @image = "Girders2.png"
+
+class Girders3 extends Debris
+  @name = "Girders3"
+  @image = "Girders3.png"
+
+class Branz extends Debris
+  @name = "Beanz"
+  @image = "Beanz.png"
+
+class Recycler extends Debris
+  @name = "Recycler"
+  @image = "Recycler.png"
+
+class OldDoor extends Debris
+  @name = "OldDoor"
+  @image = "OldDoor.png"
+
 #
 # -The- level
 #
@@ -448,7 +501,9 @@ class LevelModel extends Base
     @paddleRestitution = 0.5
     @levelName = "Unnamed level"
     @controlType = "Paddle"
-    @gameObjectClasses = [SpawnPoint, Paddle, Fish, Toothbrush, Lunch,  GravityBall, SmallPlank, MediumPlank, LargePlank, Spring, StopSign, OneWaySign, YieldSign, GuardRail]
+    @gameObjectClasses = [SpawnPoint, Paddle, Fish, Toothbrush, Lunch,  GravityBall,
+      SmallPlank, MediumPlank, LargePlank, Spring, StopSign, OneWaySign, YieldSign, GuardRail
+      Girders1, Girders2, Girders3, Branz, Recycler, OldDoor]
     @gameObjectClassByName = ([c.name,c] for c in @gameObjectClasses).dict()
     @levelModel = this #For property helper methods
 
@@ -532,7 +587,7 @@ $(document).ready ->
   levelModel = new LevelModel
   levelCanvas = new LevelCanvas $("#editorCanvas").get(0), levelModel
   levelListing = new LevelListing $("#levelListing").get(0), levelModel
-  objectInspetor = new ObjectInspector $("#objectInspector").get(0), levelModel
+  objectInspector = new ObjectInspector $("#objectInspector").get(0), levelModel
   levelProperties = new LevelProperties $("#levelProperties").get(0), levelModel
   gameObjectSelector = new GameObjectSelector $("#gameObjects").get(0), levelModel
   savedLister = new SavedLister $("#levelSaves").get(0), levelModel

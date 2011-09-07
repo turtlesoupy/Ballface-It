@@ -98,14 +98,30 @@ h2 {
   margin-top: 20px;
 }
 
+.gameObjectGroup {
+  margin-top: 10px;
+}
+
+.gameObjectGroup table {
+  width: 100%;
+  margin-top: 10px;
+  border-collapse:collapse;
+}
+
+.gameObjectGroup tr {
+  width: 100%;
+}
+
+.gameObjectGroup td {
+  vertical-align: middle;
+  width: 25%;
+}
+
 .gameObject {
-  width: 100px;
   border: 1px solid #e0e0e0;
   text-align: center;
-  min-height: 100px;
   padding: 5px;
   margin: 5px;
-  float: left;
 }
 
 .gameObjectImage {
