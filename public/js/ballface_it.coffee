@@ -472,7 +472,7 @@ class Girders3 extends Debris
   @name = "Girders3"
   @image = "Girders3.png"
 
-class Branz extends Debris
+class Beanz extends Debris
   @name = "Beanz"
   @image = "Beanz.png"
 
@@ -503,7 +503,7 @@ class LevelModel extends Base
     @controlType = "Paddle"
     @gameObjectClasses = [SpawnPoint, Paddle, Fish, Toothbrush, Lunch,  GravityBall,
       SmallPlank, MediumPlank, LargePlank, Spring, StopSign, OneWaySign, YieldSign, GuardRail
-      Girders1, Girders2, Girders3, Branz, Recycler, OldDoor]
+      Girders1, Girders2, Girders3, Beanz, Recycler, OldDoor]
     @gameObjectClassByName = ([c.name,c] for c in @gameObjectClasses).dict()
     @levelModel = this #For property helper methods
 
