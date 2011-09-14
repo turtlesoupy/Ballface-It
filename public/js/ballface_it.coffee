@@ -220,7 +220,7 @@ class GameObjectSelector extends Base
   constructor: (@node, @levelModel) ->
     groups = @levelModel.gameObjectClasses.groupBy aa("groupName")
     for groupName, gameObjectClasses of groups
-      html = "<div class='gameObjectGroup'><h2>#{groupName}</h2><table>"
+      html = "<div class='gameObjectGroup'><div class='gameObjectGroupToggle hidden'>#{groupName}</div><table style='display:none;'>"
       for gameObjectGroup in gameObjectClasses.inGroupsOf(4, true)
         html += "<tr>"
         html += (for gameObjectClass in gameObjectGroup
@@ -237,7 +237,12 @@ class GameObjectSelector extends Base
         ).join("")
         html += "</tr>"
       html += "</table></div>"
-      $(@node).append html
+      $html = $(html)
+      $html.find(".gameObjectGroupToggle").click (e) ->
+        $(this).next("table").toggle('slow')
+        $(this).toggleClass("hidden")
+
+      $(@node).append $html
 
     $(".gameObjectImage" ).draggable {helper: 'clone'}
 
@@ -285,8 +290,8 @@ class SavedLister extends Base
 # Game objects
 # 
 class GameObject extends Base
-  @name: "Unknown"
-  @image: "unknown.png"
+  @name: this.name
+  @image: "#{this.name}.png"
   @groupName: "Game Objects"
   @relativeImage: =>
     "data/game_objects/#{@image}"
@@ -484,6 +489,24 @@ class OldDoor extends Debris
   @name = "OldDoor"
   @image = "OldDoor.png"
 
+class CosbyLetter extends GameObject
+  @groupName = "Letters"
+
+class CosbyLetterC extends CosbyLetter
+  @image = "letterC.png"
+
+class CosbyLetterO extends CosbyLetter
+  @image = "letterO.png"
+
+class CosbyLetterS extends CosbyLetter
+  @image = "letterS.png"
+
+class CosbyLetterB extends CosbyLetter
+  @image = "letterB.png"
+
+class CosbyLetterY extends CosbyLetter
+  @image = "letterY.png"
+
 #
 # -The- level
 #
@@ -501,9 +524,12 @@ class LevelModel extends Base
     @paddleRestitution = 0.5
     @levelName = "Unnamed level"
     @controlType = "Paddle"
-    @gameObjectClasses = [SpawnPoint, Paddle, Fish, Toothbrush, Lunch,  GravityBall,
-      SmallPlank, MediumPlank, LargePlank, Spring, StopSign, OneWaySign, YieldSign, GuardRail
-      Girders1, Girders2, Girders3, Beanz, Recycler, OldDoor]
+    @gameObjectClasses = [SpawnPoint,
+        Paddle, Fish, Toothbrush, Lunch,  GravityBall,
+        SmallPlank, MediumPlank, LargePlank, Spring, StopSign, OneWaySign, YieldSign, GuardRail
+        Girders1, Girders2, Girders3, Beanz, Recycler, OldDoor,
+        CosbyLetterC, CosbyLetterO, CosbyLetterS, CosbyLetterB, CosbyLetterY
+    ]
     @gameObjectClassByName = ([c.name,c] for c in @gameObjectClasses).dict()
     @levelModel = this #For property helper methods
 

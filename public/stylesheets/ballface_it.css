@@ -182,3 +182,16 @@ li.listingObject:hover {
   height: 24px;
   margin: 10px auto;
 }
+
+.gameObjectGroupToggle {
+  cursor: pointer;
+  font-weight: bold;
+  padding-left: 20px;
+  background-image: url("/images/collapseVisible.png");
+  background-position: left center;
+  background-repeat: no-repeat;
+}
+
+.gameObjectGroupToggle.hidden {
+  background-image: url("/images/collapseHidden.png");
+}
