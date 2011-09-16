@@ -526,7 +526,7 @@ class LevelModel extends Base
     @controlType = "Paddle"
     @gameObjectClasses = [SpawnPoint,
         Paddle, Fish, Toothbrush, Lunch,  GravityBall,
-        SmallPlank, MediumPlank, LargePlank, Spring, StopSign, OneWaySign, YieldSign, GuardRail
+        SmallPlank, MediumPlank, LargePlank, SpringBox, StopSign, OneWaySign, YieldSign, GuardRail
         Girders1, Girders2, Girders3, Beanz, Recycler, OldDoor,
         CosbyLetterC, CosbyLetterO, CosbyLetterS, CosbyLetterB, CosbyLetterY
     ]
