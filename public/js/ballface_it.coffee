@@ -410,8 +410,8 @@ class Toothbrush extends GameObject
   @name = "Toothbrush"
   @image = "toothbrush.png"
 
-class Spring extends GameObject
-  @name = "Spring"
+class SpringBox extends GameObject
+  @name = "SpringBox"
   @image = "spring.png"
 
 class Debris extends GameObject
