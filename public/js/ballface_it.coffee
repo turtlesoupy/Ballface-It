@@ -117,10 +117,10 @@ class LevelCanvas extends Base
         relativeTop = ui.offset.top - dPos.top
         relativeLeft = ui.offset.left - dPos.left
         klass = @levelModel.gameObjectClassByName[ui.draggable.data("gameObjectClass")]
-        gameObject = new klass(relativeLeft, relativeTop, @levelModel, (obj) =>
-          obj.x = obj.x + obj.width * obj.weightedOriginX
-          obj.y = obj.y + obj.height* obj.weightedOriginY
-          @levelModel.addGameObject gameObject)
+        gameObject = new klass(@levelModel)
+        gameObject.x = relativeLeft + gameObject.width * gameObject.weightedOriginX
+        gameObject.y = relativeTop + gameObject.height* gameObject.weightedOriginY
+        @levelModel.addGameObject gameObject
     }
 
   mouseDown: (e) =>
@@ -229,7 +229,7 @@ class GameObjectSelector extends Base
           else
             """
               <td class="gameObject">
-                <img src="#{gameObjectClass.relativeImage()}" class="gameObjectImage" data-game-object-class="#{gameObjectClass.name}"/>
+                <img src="#{gameObjectClass.imageObject.src}" class="gameObjectImage" data-game-object-class="#{gameObjectClass.name}"/>
                 <br />
                 <span class="gameObjectName">#{gameObjectClass.name}</span>
               </td>
@@ -291,27 +291,29 @@ class SavedLister extends Base
 # 
 class GameObject extends Base
   @name: this.name
-  @image: "#{this.name}.png"
   @groupName: "Game Objects"
-  @relativeImage: =>
-    "data/game_objects/#{@image}"
   @counter = 0
 
-  @deserializeNew: (data, levelModel, loaded) =>
-    ret = new this(data.x, levelModel.height - data.y, levelModel, loaded)
+  @deserializeNew: (data, levelModel) =>
+    ret = new this(levelModel)
     for property in ret.gameProperties()
       property.set(data[property.name]) if data[property.name]?
+    ret.y = levelModel.height - data.y
     ret
 
-  constructor: (@x, @y, @levelModel, loaded) ->
-    @imageObject = new Image()
-    @imageObject.onload = =>
-      @width = @imageObject.width
-      @height = @imageObject.height
-      loaded(this)
+  @gameObjectImage: (name) ->
+    ret = new Image()
+    ret.src = "data/game_objects/#{name}"
+    ret
+
+  constructor: (@levelModel) ->
+    @x = 0
+    @y = 0
+    @imageObject = @getClass().imageObject
+    @width = @imageObject.width
+    @height = @imageObject.height
     GameObject.counter += 1
     @id = GameObject.counter
-    @imageObject.src = @constructor.relativeImage()
     @selected = false
     @weightedOriginX = 0.5
     @weightedOriginY = 0.5
@@ -320,19 +322,22 @@ class GameObject extends Base
     @density = 100.0
     @friction = 0.1
 
-  draw: (canvas) ->
-    context = canvas.getContext "2d"
-    context.save()
+  nodeSpaceContext: (context) ->
     context.translate(@x, @y)
     context.rotate(@rotation * Math.PI / 180)
     context.translate(-@x, -@y)
+
+  draw: (canvas) ->
+    context = canvas.getContext "2d"
+    context.save()
+    @nodeSpaceContext(context)
     x = @x - @weightedOriginX * @width
     y = @y - @weightedOriginY * @height
     extra = 2
     if @selected
       context.fillStyle = "#00f"
       context.fillRect x - extra,y - extra,@width + 2*extra,@height + 2*extra
-    context.drawImage @imageObject, x, y, @width, @height
+    context.drawImage @getClass().imageObject, x, y, @width, @height
     context.restore()
 
   convertToLocalSpace: (x,y) ->
@@ -376,11 +381,11 @@ class GameEntity extends GameObject
   @groupName = "Entities"
 
 class SpawnPoint extends GameEntity
-  @image = "ballface.png"
+  @imageObject: @gameObjectImage("ballface.png")
   @name = "Ballface Spawn"
 
-  constructor: (@x, @y, @levelModel, loaded) ->
-    super(@x, @y, @levelModel, loaded)
+  constructor: (@levelModel) ->
+    super(@levelModel)
     @normalizationForce = 200.0
     @maxVelocity = 100.0
 
@@ -392,32 +397,77 @@ class SpawnPoint extends GameEntity
 
 class Paddle extends GameObject
   @name: "Wooden Paddle"
-  @image: "paddle.png"
-  constructor: (@x, @y, @levelModel, loaded) ->
-    super(@x, @y, @levelModel, loaded)
+  @imageObject: @gameObjectImage("paddle.png")
+  constructor: (@levelModel) ->
+    super(@levelModel)
     @weightedOriginX = 0.5
     @weightedOriginY = 1.0
 
 class GravityBall extends GameObject
   @name: "Gravity Ball"
-  @image: "gravityball.png"
+  @imageObject: @gameObjectImage("gravityball.png")
 
 class Fish extends GameObject
   @name: "Fish"
-  @image: "fishEnemy.png"
+  @imageObject: @gameObjectImage("fishEnemy.png")
 
 class Toothbrush extends GameObject
   @name = "Toothbrush"
-  @image = "toothbrush.png"
+  @imageObject: @gameObjectImage("toothbrush.png")
 
-class SpringBox extends GameObject
-  @name = "SpringBox"
-  @image = "spring.png"
+class Spring extends GameObject
+  @groupName = "Contraptions"
+  @imageObject: @gameObjectImage("springIcon.png")
+  @springBodyImage = new Image()
+  @springCapImage = new Image()
+  @springBodyImage.src = "data/game_objects/springBody.png"
+  @springCapImage.src = "data/game_objects/springCap.png"
+
+  constructor: (@levelModel) ->
+    super(@levelModel)
+    @springConstant = 5.0
+    @dampingConstant = 0.1
+    @maxExtension = 80.0
+    @startExtension = 40.0
+    @unextendedLength = 60.0
+    @springsOnCollision = true
+    @weightedOriginX = 0.5
+    @weightedOriginY = 1.0
+    @height = @startExtension
+
+  draw: (canvas) ->
+    @height = @startExtension
+    context = canvas.getContext "2d"
+    context.save()
+    @nodeSpaceContext(context)
+    x = @x - @weightedOriginX * @width
+    y = @y - @weightedOriginY * @height
+    extra = 2
+    if @selected
+      context.fillStyle = "#00f"
+      context.fillRect x - extra,y - extra,@width + 2*extra,@height + 2*extra
+    context.fillStyle = "rgba(0,255,0,0.2)"
+    context.fillRect x, y + @height - @unextendedLength, @width,  @unextendedLength - @height
+    context.fillStyle = "rgba(255,0,0,0.2)"
+    context.fillRect x, y + @height - @maxExtension, @width,  @maxExtension - @unextendedLength
+    context.drawImage @getClass().springBodyImage, x, y, @width, @height
+    context.drawImage @getClass().springCapImage, x, y, @width, @getClass().springCapImage.height
+    context.restore()
+
+  gameProperties: ->
+    @_gameProperties or= super().concat(@setAndNotifyProperty(e...) for e in [
+      ["startExtension", FloatProperty],
+      ["maxExtension", FloatProperty],
+      ["unextendedLength", FloatProperty],
+      ["springConstant", FloatProperty],
+      ["dampingConstant", FloatProperty],
+      ["springOnCollision", BooleanProperty]
+    ])
 
 class Debris extends GameObject
   @groupName = "Debris"
-  constructor: (@x, @y, @levelModel, loaded) ->
-    super(@x, @y, @levelModel, loaded)
+  constructor: (@levelModel) ->
+    super(@levelModel)
     @staticBody = true
 
   gameProperties: ->
@@ -427,9 +477,9 @@ class Debris extends GameObject
 
 class Lunch extends GameObject
   @name = "Lunch Bag"
-  @image = "lunch.png"
-  constructor: (@x, @y, @levelModel, loaded) ->
-    super(@x, @y, @levelModel, loaded)
+  @imageObject: @gameObjectImage("lunch.png")
+  constructor: (@levelModel) ->
+    super(@levelModel)
     @foodVelocityRatio = 1.0
 
   gameProperties: ->
@@ -439,73 +489,73 @@ class Lunch extends GameObject
 
 class LargePlank extends Debris
   @name: "LargePlank"
-  @image: "Planks-4x1.png"
+  @imageObject: @gameObjectImage("Planks-4x1.png")
 
 class MediumPlank extends Debris
   @name: "MediumPlank"
-  @image: "Planks-3x1.png"
+  @imageObject: @gameObjectImage("Planks-3x1.png")
 
 class SmallPlank extends Debris
   @name: "SmallPlank"
-  @image: "Planks-2x1.png"
+  @imageObject: @gameObjectImage("Planks-2x1.png")
 
 class StopSign extends Debris
   @name = "Stop"
-  @image = "stop.png"
+  @imageObject: @gameObjectImage("stop.png")
 
 class OneWaySign extends Debris
   @name = "One Way"
-  @image = "oneway.png"
+  @imageObject: @gameObjectImage("oneway.png")
 
 class YieldSign extends Debris
   @name = "Yield"
-  @image = "yield.png"
+  @imageObject: @gameObjectImage("yield.png")
 
 class GuardRail extends Debris
   @name = "GuardRail"
-  @image = "GuardRail.png"
+  @imageObject: @gameObjectImage("GuardRail.png")
 
 class Girders1 extends Debris
   @name = "Girders1"
-  @image = "Girders1.png"
+  @imageObject: @gameObjectImage("Girders1.png")
 
 class Girders2 extends Debris
   @name = "Girders2"
-  @image = "Girders2.png"
+  @imageObject: @gameObjectImage("Girders2.png")
 
 class Girders3 extends Debris
   @name = "Girders3"
-  @image = "Girders3.png"
+  @imageObject: @gameObjectImage("Girders3.png")
 
 class Beanz extends Debris
   @name = "Beanz"
-  @image = "Beanz.png"
+  @imageObject: @gameObjectImage("Beanz.png")
 
 class Recycler extends Debris
   @name = "Recycler"
-  @image = "Recycler.png"
+  @imageObject: @gameObjectImage("Recycler.png")
 
 class OldDoor extends Debris
   @name = "OldDoor"
-  @image = "OldDoor.png"
+  @imageObject: @gameObjectImage("OldDoor.png")
 
 class CosbyLetter extends GameObject
   @groupName = "Letters"
 
 class CosbyLetterC extends CosbyLetter
-  @image = "letterC.png"
+  @imageObject: @gameObjectImage("letterC.png")
 
 class CosbyLetterO extends CosbyLetter
-  @image = "letterO.png"
+  @imageObject: @gameObjectImage("letterO.png")
 
 class CosbyLetterS extends CosbyLetter
-  @image = "letterS.png"
+  @imageObject: @gameObjectImage("letterS.png")
 
 class CosbyLetterB extends CosbyLetter
-  @image = "letterB.png"
+  @imageObject: @gameObjectImage("letterB.png")
 
 class CosbyLetterY extends CosbyLetter
-  @image = "letterY.png"
+  @imageObject: @gameObjectImage("letterY.png")
 
 #
 # -The- level
@@ -526,7 +576,7 @@ class LevelModel extends Base
     @controlType = "Paddle"
     @gameObjectClasses = [SpawnPoint,
         Paddle, Fish, Toothbrush, Lunch,  GravityBall,
-        SmallPlank, MediumPlank, LargePlank, SpringBox, StopSign, OneWaySign, YieldSign, GuardRail
+        SmallPlank, MediumPlank, LargePlank, Spring, StopSign, OneWaySign, YieldSign, GuardRail
         Girders1, Girders2, Girders3, Beanz, Recycler, OldDoor,
         CosbyLetterC, CosbyLetterO, CosbyLetterS, CosbyLetterB, CosbyLetterY
     ]
@@ -605,9 +655,9 @@ class LevelModel extends Base
     for property in @gameProperties()
       property.set(object[property.name]) if object[property.name]?
     for e in object.objects
-      @gameObjectClassByName[e.type].deserializeNew e, this, (gameObject) =>
-        @addGameObject(gameObject)
-        @modelChanged()
+      gameObject = @gameObjectClassByName[e.type].deserializeNew(e, this)
+      @addGameObject(gameObject)
+      @modelChanged()
 
 $(document).ready ->
   levelModel = new LevelModel
