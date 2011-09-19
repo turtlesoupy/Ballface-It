@@ -443,8 +443,15 @@ class Spring extends GameObject
     y = @y - @weightedOriginY * @height
     extra = 2
     if @selected
+      context.save()
       context.fillStyle = "#00f"
       context.fillRect x - extra,y - extra,@width + 2*extra,@height + 2*extra
+      context.strokeStyle = "#000"
+      context.lineWidth = 2
+      context.moveTo(x + @width / 2,y)
+      context.lineTo(x + @width / 2,y - 480)
+      context.stroke()
+
     context.fillStyle = "rgba(0,255,0,0.2)"
     context.fillRect x, y + @height - @unextendedLength, @width,  @unextendedLength - @height
     context.fillStyle = "rgba(255,0,0,0.2)"
