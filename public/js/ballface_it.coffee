@@ -176,8 +176,9 @@ class LevelCanvas extends Base
 
   redraw: =>
     @clear()
+    context = @canvas.getContext "2d"
     for gameObject in @levelModel.gameObjects
-      gameObject.draw @canvas
+      gameObject.draw context
 
 class LevelListing extends Base
   constructor: (@node, @levelModel) ->
@@ -327,8 +328,7 @@ class GameObject extends Base
     context.rotate(@rotation * Math.PI / 180)
     context.translate(-@x, -@y)
 
-  draw: (canvas) ->
-    context = canvas.getContext "2d"
+  draw: (context) ->
     context.save()
     @nodeSpaceContext(context)
     x = @x - @weightedOriginX * @width
@@ -435,9 +435,8 @@ class Spring extends GameObject
     @weightedOriginY = 1.0
     @height = @startExtension
 
-  draw: (canvas) ->
+  draw: (context) ->
     @height = @startExtension
-    context = canvas.getContext "2d"
     context.save()
     @nodeSpaceContext(context)
     x = @x - @weightedOriginX * @width
