@@ -431,6 +431,7 @@ class Spring extends GameObject
     @startExtension = 40.0
     @unextendedLength = 60.0
     @springsOnCollision = true
+    @stopsCollider = false
     @weightedOriginX = 0.5
     @weightedOriginY = 1.0
     @height = @startExtension
@@ -468,7 +469,8 @@ class Spring extends GameObject
       ["unextendedLength", FloatProperty],
       ["springConstant", FloatProperty],
       ["dampingConstant", FloatProperty],
-      ["springOnCollision", BooleanProperty]
+      ["springOnCollision", BooleanProperty],
+      ["stopsCollider", BooleanProperty]
     ])
 
 class Debris extends GameObject
@@ -476,10 +478,12 @@ class Debris extends GameObject
   constructor: (@levelModel) ->
     super(@levelModel)
     @staticBody = true
+    @damageCaused = 0
 
   gameProperties: ->
     @_gameProperties or= super().concat(@setAndNotifyProperty(e...) for e in [
-      ["staticBody", BooleanProperty]
+      ["staticBody", BooleanProperty],
+      ["damageCaused", IntegerProperty]
     ])
 
 class Lunch extends GameObject
